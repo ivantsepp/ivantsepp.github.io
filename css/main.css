@@ -25,9 +25,8 @@ h1, h2, h3, h4, h5, h6 {
 h1 { margin-bottom: 1em; }
 p { margin: 1em 0; }
 
-a         { color: #00a; }
-a:hover   { color: #000; }
-a:visited { color: #a0a; }
+a         { color: #000; }
+a:hover   { color: #aaa; }
 
 /*****************************************************************************/
 /*
@@ -61,6 +60,7 @@ a:visited { color: #a0a; }
   width: 42em;
   margin: 3em auto 2em;
   line-height: 1.5em;
+  position: relative;
 }
 
 .header a {
@@ -81,15 +81,6 @@ a:visited { color: #a0a; }
   color: #000;
 }
 
-.header a.extra {
-  color: #aaa;
-  margin-left: 1em;
-}
-
-.header a.extra:hover {
-  color: #000;
-}
-
 .meta {
   color: #aaa;
 }
@@ -105,10 +96,6 @@ a:visited { color: #a0a; }
 .footer .contact {
   float: left;
   margin-right: 3em;
-}
-
-.footer .contact a {
-  color: #8085C1;
 }
 
 .footer .rss {
@@ -130,8 +117,12 @@ a:visited { color: #a0a; }
 /* standard */
 .post pre {
   border: 1px solid #ddd;
-  background-color: #eef;
-  padding: 0 .4em;
+  background-color: #f8f8f8;
+  padding: 6px 10px;
+  border-radius: 3px;
+  font-size: 13px;
+  line-height: 19px;
+  position: relative;
 }
 
 .post ul, .post ol {
@@ -140,8 +131,10 @@ a:visited { color: #a0a; }
 
 .post code {
   border: 1px solid #ddd;
-  background-color: #eef;
-  padding: 0 .2em;
+  background-color: #f8f8f8;
+  padding: 0 5px;
+  border-radius: 3px;
+  margin: 0 2px;
 }
 
 .post pre code {
