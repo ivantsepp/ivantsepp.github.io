@@ -1,3 +1,4 @@
 name: Ivan Tse's Blog
 markdown: redcarpet
 pygments: true
+permalink: :title
