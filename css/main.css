@@ -138,6 +138,8 @@ a:hover   { color: #aaa; }
 }
 
 .post pre code {
+  padding: 0;
+  margin: 0;
   border: none;
 }
 
