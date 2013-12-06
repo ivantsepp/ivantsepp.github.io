@@ -1,4 +1,4 @@
-name: Ivan Tse's Blog
+name: Ivan Tse
 markdown: redcarpet
 pygments: true
 permalink: :title
