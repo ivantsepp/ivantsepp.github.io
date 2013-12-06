@@ -1,8 +1,8 @@
 ---
 layout: default
 ---
-<h2>{{ page.title }}</h2>
-<p class="meta">{{ page.date | date: "%b %d %Y" }}</p>
+<h2 class="post-title">{{ page.title }}</h2>
+<p class="meta">{{ page.date | date: "%b %d %Y" }} | {{ content | reading_time | pluralize: "minute" }} read</p>
 
 <div class="post">
 {{ content }}
