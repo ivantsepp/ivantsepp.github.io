@@ -2,10 +2,10 @@
 layout: default
 ---
 <h2 class="post-title">{{ page.title }}</h2>
-<p class="meta">{{ page.date | date: "%b %d %Y" }} | {{ content | reading_time | pluralize: "minute" }} read</p>
+<p class="meta">{{ page.date | date: "%b %d, %Y" }} | {{ content | reading_time | pluralize: "minute" }} read</p>
 
 <div class="post">
-{{ content }}
+{{ content | emojify }}
 </div>
 <div id="disqus_thread"></div>
 <script type="text/javascript">

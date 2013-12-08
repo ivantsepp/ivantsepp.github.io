@@ -13,7 +13,7 @@
 html, body { height: 100%; }
 
 body {
-  background-color: #FFF;
+  background-color: #FCFFF5;
   font: 13.34px Helvetica, Arial, sans-serif;
   font-size: small;
   text-align: center;
@@ -40,12 +40,12 @@ a:hover   { color: #aaa; }
 
 .posts li {
   line-height: 1.75em;
+  font-size: 32px;
 }
 
-.posts span {
-  color: #aaa;
-  font-family: Monaco, "Courier New", monospace;
-  font-size: 80%;
+.posts li a {
+  color: #193441;
+  text-decoration: none;
 }
 
 /*****************************************************************************/
@@ -63,50 +63,57 @@ a:hover   { color: #aaa; }
   position: relative;
 }
 
+.header {
+  margin-bottom: 2em;
+}
+
 .header a {
-  font-weight: bold;
+  font-weight: 300;
   text-decoration: none;
+}
+
+.header a strong {
+  font-weight: 800;
 }
 
 .title {
   display: inline-block;
-  margin-bottom: 2em;
+  margin-bottom: 0;
+  font-size: 36px;
+  line-height: 36px;
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 300;
+}
+.title a{
+  color: #3E606F;
 }
 
-.title a {
-  color: #a00;
-}
-
-.title a:hover {
-  color: #000;
+.tagline {
+  color: #91AA9D;
+  margin: 0;
 }
 
 .meta {
-  color: #aaa;
+  color: #91AA9D;
   text-align: center;
 }
 
 .footer {
   font-size: 80%;
-  color: #666;
-  border-top: 4px solid #eee;
+  color: #D1DBBD;
+  border-top: 1px solid #eee;
   margin-top: 2em;
+  padding: 2em;
+  text-align: center;
   overflow: hidden;
 }
 
-.footer .contact {
-  float: left;
-  margin-right: 3em;
+.footer a {
+  color: #D1DBBD;
 }
 
-.footer .rss {
-  margin-top: 1.1em;
-  margin-right: -.2em;
-  float: right;
-}
-
-.footer .rss img {
-  border: 0;
+.footer a:hover{
+  color: #91AA9D;
 }
 
 /*****************************************************************************/
@@ -159,4 +166,5 @@ a:hover   { color: #aaa; }
   font-size: 52px;
   line-height: 52px;
   text-align: center;
+  color: #193441;
 }
