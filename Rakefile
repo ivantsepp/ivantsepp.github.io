@@ -25,7 +25,7 @@ task :publish => [:generate] do
     system "git add ."
     system "git commit -am #{message.shellescape}"
     system "git push ivantsepp master --force"
-    system "git checkout master"
+    system "git checkout source"
   end
 
 end
