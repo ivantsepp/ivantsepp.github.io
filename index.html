@@ -7,7 +7,7 @@ title: Ivan Tse
   <ul class="posts">
     {% for post in site.posts %}
       <li>
-        <a href="{{ site.baseurl}}{{ post.url }}">{{ post.title }}</a>
+        <a href="{{ post.url }}">{{ post.title }}</a>
         <span class="description">{{ post.description }}</span>
       </li>
     {% endfor %}

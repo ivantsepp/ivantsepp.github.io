@@ -31,7 +31,7 @@ module Jekyll
         if config['emoji_dir'].start_with?('http')
           emoji_dir = config['emoji_dir']
         else
-          emoji_dir = File.join(config['baseurl'], config['emoji_dir'])
+          emoji_dir = File.join(config['emoji_dir'])
         end
       end
 
