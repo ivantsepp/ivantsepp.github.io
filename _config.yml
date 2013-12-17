@@ -2,5 +2,4 @@ name: Ivan Tse
 markdown: redcarpet
 pygments: true
 permalink: :title
-baseurl: /blog
 emoji_dir: /images/emoji
