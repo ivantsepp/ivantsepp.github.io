@@ -1,15 +1,45 @@
----
-layout: default
-title: Ivan Tse
----
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title>Ivan Tse</title>
+        <meta name="viewport" content="width=device-width">
 
-<div id="home">
+        <!-- exo font -->
+        <link href='http://fonts.googleapis.com/css?family=Exo+2:800,300' rel='stylesheet' type='text/css'>
+
+        <!-- syntax highlighting CSS -->
+        <link rel="stylesheet" href="/blog/css/syntax.css">
+
+        <!-- Custom CSS -->
+        <link rel="stylesheet" href="/blog/css/main.css">
+
+    </head>
+    <body>
+
+        <div class="site">
+          <div class="header">
+            <h1 class="title"><a href="/blog/">Ivan<strong>Tse</strong></a></h1>
+            <p class="tagline">Ruby apprentice learning to code more beautifully</p>
+          </div>
+
+          <div id="home">
   <ul class="posts">
-    {% for post in site.posts %}
+    
       <li>
-        <a href="{{ site.baseurl}}{{ post.url }}">{{ post.title }}</a>
-        <span class="description">{{ post.description }}</span>
+        <a href="/blog/welcome-to-jekyll">Welcome to Jekyll!</a>
+        <span class="description"></span>
       </li>
-    {% endfor %}
+    
   </ul>
 </div>
+
+
+          <div class="footer">
+            This site is powered by <a href="http://jekyllrb.com">Jekyll</a> and hosted by <a href="http://pages.github.com/">GitHub Pages</a>. You can view the source <a href="https://github.com/ivantsepp/blog">here</a>.
+          </div>
+        </div>
+
+    </body>
+</html>
