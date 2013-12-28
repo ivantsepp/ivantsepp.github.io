@@ -18,7 +18,12 @@ desc "Generate and publish blog to gh-pages"
 task :publish => [:generate] do
   Dir.mktmpdir do |tmp|
     system "mv _site/* #{tmp}"
+    unless %x{git status --short}.empty?
+      stashed = true
+      system "git stash"
+    end
     system "git checkout master"
+    break unless $?.success?
     system "rm -rf *"
     system "mv #{tmp}/* ."
     message = "Site updated at #{Time.now.utc}"
@@ -26,6 +31,9 @@ task :publish => [:generate] do
     system "git commit -am #{message.shellescape}"
     system "git push ivantsepp master --force"
     system "git checkout source"
+    if stashed
+      system "git stash pop"
+    end
   end
 
 end
