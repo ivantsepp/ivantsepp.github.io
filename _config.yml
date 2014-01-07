@@ -3,3 +3,5 @@ markdown: redcarpet
 pygments: true
 permalink: :title
 emoji_dir: /images/emoji
+timezone: America/New_York
+excerpt_separator: ""
