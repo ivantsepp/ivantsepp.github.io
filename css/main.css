@@ -140,6 +140,7 @@ a:hover   { color: #aaa; }
   font-size: 13px;
   line-height: 19px;
   position: relative;
+  overflow-x: scroll;
 }
 
 .post ul, .post ol {
