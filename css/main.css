@@ -230,6 +230,14 @@ footer {
   overflow: hidden;
 }
 
+footer::selection, footer *::selection {
+  background-color: #515151;
+}
+
+footer::-moz-selection, footer *::-moz-selection{
+  background-color: #515151;
+}
+
 footer a {
   color: #D1DBBD;
 }
