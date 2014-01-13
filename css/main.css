@@ -1,95 +1,208 @@
-/*****************************************************************************/
-/*
-/* Common
-/*
-/*****************************************************************************/
-
-/* Global Reset */
+/* With help from Poole */
 * {
+  -webkit-box-sizing: border-box;
+     -moz-box-sizing: border-box;
+          box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body { height: 100%; }
-
-body {
-  background-color: #FCFFF5;
-  font: 13.34px Helvetica, Arial, sans-serif;
-  font-size: small;
-  text-align: center;
+html {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+@media (min-width: 38rem) {
+  html {
+    font-size: 20px;
+  }
 }
 
+body {
+  color: #515151;
+  background-color: #FCFFF5;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Headings */
 h1, h2, h3, h4, h5, h6 {
-  font-size: 100%; }
+  margin-bottom: .5rem;
+  font-weight: bold;
+  line-height: 1.25;
+  color: #313131;
+  text-rendering: optimizeLegibility;
+}
+h1 {
+  font-size: 2rem;
+}
+h2 {
+  margin-top: 1rem;
+  font-size: 1.5rem;
+}
+h3 {
+  margin-top: 1.5rem;
+  font-size: 1.25rem;
+}
+h4, h5, h6 {
+  margin-top: 1rem;
+  font-size: 1rem;
+}
 
-h1 { margin-bottom: 1em; }
-p { margin: 1em 0; }
+/* Body text */
+p {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
 
-a         { color: #000; }
+/* Lists */
+ul, ol, dl {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+dt {
+  font-weight: bold;
+}
+dd {
+  margin-bottom: .5rem;
+}
+
+/* Misc */
+hr {
+  position: relative;
+  margin: 1.5rem 0;
+  border: 0;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #fff;
+}
+
+abbr {
+  font-size: 85%;
+  font-weight: bold;
+  color: #555;
+  text-transform: uppercase;
+}
+abbr[title] {
+  cursor: help;
+  border-bottom: 1px dotted #e5e5e5;
+}
+
+/* Quotes */
+blockquote {
+  padding: .5rem 1rem;
+  margin: .8rem 0;
+  color: #7a7a7a;
+  border-left: .25rem solid #e5e5e5;
+}
+blockquote p:last-child {
+  margin-bottom: 0;
+}
+@media (min-width: 30rem) {
+  blockquote {
+    padding-right: 5rem;
+    padding-left: 1.25rem;
+  }
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  margin: 0 0 1rem;
+  border-radius: 5px;
+}
+
+/* Tables */
+table {
+  margin-bottom: 1rem;
+  width: 100%;
+  border: 1px solid #ddd;
+  border-collapse: collapse;
+  background-color: #fff;
+}
+td,
+th {
+  padding: .25rem .5rem;
+  border: 1px solid #ddd;
+}
+tbody tr:nth-child(odd) td,
+tbody tr:nth-child(odd) th {
+  background-color: #f8f8f8;
+}
+
+a         { color: #515151; }
 a:hover   { color: #aaa; }
 
 /*****************************************************************************/
 /*
-/* Home
+/* Posts
 /*
 /*****************************************************************************/
 .posts {
   list-style-type: none;
-  margin-bottom: 2em;
+  margin-bottom: 2rem;
 }
 
 .posts li {
-  line-height: 32px;
-  font-size: 32px;
+
   text-align: left;
-  margin-bottom: 20px;
+  margin-bottom: 1rem;
 }
 
 .posts li a {
+  font-size: 1.5rem;
+  line-height: 1;
+  display: block;
   color: #193441;
   text-decoration: none;
 }
 
 .posts li span.description {
   display: inline-block;
-  font-size: 14px;
-  line-height: 14px;
+  font-size: .75rem;
+  line-height: 1;
+}
+
+.post-title {
+  text-align: center;
+  color: #193441;
+}
+
+.post ul, .post ol {
+  margin-left: 1.35rem;
 }
 
 /*****************************************************************************/
 /*
-/* Site
+/* Container
 /*
 /*****************************************************************************/
 
-.site {
-  font-size: 115%;
-  text-align: justify;
-  width: 42em;
-  margin: 0 auto 2em;
-  padding-top: 3em;
-  line-height: 1.5em;
-  position: relative;
+.container {
+  max-width: 38rem;
+  padding-top: 2rem;
+  padding-left:  1rem;
+  padding-right: 1rem;
+  margin-left:  auto;
+  margin-right: auto;
 }
 
-.header {
+header {
   margin-bottom: 2em;
 }
 
-.header a {
+header a {
   font-weight: 300;
   text-decoration: none;
 }
 
-.header a strong {
+header a strong {
   font-weight: 800;
 }
 
 .title {
   display: inline-block;
   margin-bottom: 0;
-  font-size: 40px;
-  line-height: 40px;
+  font-size: 2rem;
   font-family: 'Exo 2', sans-serif;
   font-weight: 300;
 }
@@ -99,82 +212,65 @@ a:hover   { color: #aaa; }
 
 .tagline {
   color: #91AA9D;
-  margin: 0;
 }
 
 .meta {
+  font-size: .8rem;
   color: #91AA9D;
   text-align: center;
 }
 
-.footer {
-  font-size: 80%;
+footer {
+  font-size: .7rem;
   color: #D1DBBD;
   border-top: 1px solid #eee;
-  margin-top: 2em;
-  padding: 2em;
+  margin-top: 2rem;
+  padding: 2rem;
   text-align: center;
   overflow: hidden;
 }
 
-.footer a {
+footer a {
   color: #D1DBBD;
 }
 
-.footer a:hover{
+footer a:hover{
   color: #91AA9D;
 }
 
 /*****************************************************************************/
 /*
-/* Posts
+/* Code
 /*
 /*****************************************************************************/
 
-/* standard */
-.post pre {
-  border: 1px solid #ddd;
+code {
+  padding: 0 .5em;
+  font-size: 85%;
   background-color: #f8f8f8;
-  padding: 6px 10px;
-  border-radius: 3px;
-  font-size: 13px;
-  line-height: 19px;
-  position: relative;
-  overflow-x: scroll;
-}
-
-.post ul, .post ol {
-  margin-left: 1.35em;
-}
-
-.post code {
   border: 1px solid #ddd;
-  background-color: #f8f8f8;
-  padding: 0 5px;
   border-radius: 3px;
   margin: 0 2px;
+}
+
+pre {
+  display: block;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  font-size: .8rem;
+  line-height: 1.4;
+  background-color: #f8f8f8;
+  overflow-x: scroll;
+  border: 1px solid #ddd;
+  border-radius: 3px;
 }
 
 .post pre code {
   padding: 0;
   margin: 0;
   border: none;
-}
-
-/* terminal */
-.post pre.terminal {
-  border: 1px solid #000;
-  background-color: #333;
-  color: #FFF;
-}
-
-.post pre.terminal code {
-  background-color: #333;
-}
-
-.post-title {
-  font-size: 52px;
-  line-height: 52px;
-  text-align: center;
-  color: #193441;
+  font-size: 100%;
+  color: inherit;
+  background-color: transparent;
 }

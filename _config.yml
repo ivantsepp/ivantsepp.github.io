@@ -1,4 +1,5 @@
 name: Ivan Tse
+tagline: Ruby apprentice learning to code more beautifully
 markdown: redcarpet
 pygments: true
 permalink: :title
