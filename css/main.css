@@ -283,3 +283,12 @@ pre {
   color: inherit;
   background-color: transparent;
 }
+
+.profile-picture {
+  text-align: center;
+}
+
+.profile-picture img {
+  border-radius: 75px;
+  display: inline-block;
+}

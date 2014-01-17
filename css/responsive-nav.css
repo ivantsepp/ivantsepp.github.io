@@ -14,7 +14,8 @@
   border-top: 1px solid #FCFFF5;
 }
 
-.nav-collapse li .active{
+.nav-collapse li .active, .nav-collapse li .active:hover,
+.nav-collapse li .active:focus {
   background-color: #3E606F;
   color: white;
 }
@@ -29,6 +30,10 @@
   text-decoration: none;
   background-color: #3E606F;
   color: #FCFFF5;
+}
+
+.nav-collapse li a:hover, .nav-collapse li a:focus {
+  background-color: #e7e5e3;
 }
 
 .js .nav-collapse {
