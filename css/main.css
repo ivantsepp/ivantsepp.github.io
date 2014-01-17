@@ -179,7 +179,7 @@ a:hover   { color: #aaa; }
 
 .container {
   max-width: 38rem;
-  padding-top: 2rem;
+  padding-top: 1rem;
   padding-left:  1rem;
   padding-right: 1rem;
   margin-left:  auto;
@@ -218,6 +218,7 @@ header a strong {
   font-size: .8rem;
   color: #91AA9D;
   text-align: center;
+  margin-top: -.5rem;
 }
 
 footer {

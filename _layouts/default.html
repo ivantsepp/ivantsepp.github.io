@@ -1,33 +1,35 @@
 <!DOCTYPE html>
 <html lang=en>
-    <head>
-        <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-        <title>Ivan Tse - {{ page.title }}</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>Ivan Tse - {{ page.title }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 
-        <!-- exo font -->
-        <link href='http://fonts.googleapis.com/css?family=Exo+2:800,300' rel='stylesheet' type='text/css'>
+    <!-- exo font -->
+    <link href='http://fonts.googleapis.com/css?family=Exo+2:800,300' rel='stylesheet' type='text/css'>
 
-        <!-- syntax highlighting CSS -->
-        <link rel="stylesheet" href="/css/syntax.css">
+    <!-- syntax highlighting CSS -->
+    <link rel="stylesheet" href="/css/syntax.css">
 
-        <!-- Custom CSS -->
-        <link rel="stylesheet" href="/css/main.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/main.css">
 
-    </head>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/responsive-nav.css">
+
+  </head>
     <body>
+      {% include nav.html %}
+
       <div class="container">
-        <header>
-          <h1 class="title"><a href="/">Ivan<strong>Tse</strong></a></h1>
-          <p class="tagline">{{ site.tagline }}</p>
-        </header>
+
+        {% include header.html %}
 
         {{ content }}
 
-        <footer>
-          This site is powered by <a href="http://jekyllrb.com">Jekyll</a> and hosted by <a href="http://pages.github.com/">GitHub Pages</a>. You can view the source <a href="https://github.com/ivantsepp/ivantsepp.github.io">here</a>.
-        </footer>
+        {% include footer.html %}
+
       </div>
     {% include scripts.html %}
     </body>

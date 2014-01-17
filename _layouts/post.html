@@ -5,7 +5,7 @@ layout: default
 <p class="meta">{{ page.date | date: "%b %d, %Y" }} | {{ content | reading_time | pluralize: "minute" }} read</p>
 
 <div class="post">
-{{ content | emojify }}
+{{ content }}
 </div>
 
 {% if site.disqus_shortname and page.comments %}<div id="disqus_thread"></div><!-- /#disqus_thread -->{% endif %}

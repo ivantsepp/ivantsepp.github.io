@@ -1,0 +1,90 @@
+/*! responsive-nav.js 1.0.25 by @viljamis */
+
+.nav-collapse ul {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: block;
+  list-style: none;
+  text-align: center;
+}
+
+.nav-collapse li {
+  display: block;
+  border-top: 1px solid #FCFFF5;
+}
+
+.nav-collapse li .active{
+  background-color: #3E606F;
+  color: white;
+}
+
+.nav-collapse li:first-child{
+  border: 0;
+}
+
+.nav-collapse li a {
+  display: block;
+  padding: 1rem;
+  text-decoration: none;
+  background-color: #3E606F;
+  color: #FCFFF5;
+}
+
+.js .nav-collapse {
+  clip: rect(0 0 0 0);
+  max-height: 0;
+  position: absolute;
+  display: block;
+  overflow: hidden;
+  zoom: 1;
+}
+
+.nav-collapse.opened {
+  max-height: 9999px;
+}
+
+.nav-collapse.disable-pointer-events {
+  pointer-events: none !important;
+}
+
+.nav-toggle {
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -o-user-select: none;
+  user-select: none;
+  background: #3E606F url("../images/hamburger.png") no-repeat 50% 33%;
+  height: 55px;
+  width: 70px;
+  display: block;
+  float: right;
+}
+body {
+  border: 0px;
+}
+
+@media screen and (min-width: 38rem) {
+  .js .nav-collapse {
+    position: relative;
+  }
+  .nav-collapse li {
+    display: inline-block;
+    border: 0;
+  }
+  .nav-collapse li a {
+    background-color: #FCFFF5;
+    color: #515151;
+  }
+  .js .nav-collapse.closed {
+    max-height: none;
+  }
+  .nav-toggle {
+    display: none;
+  }
+  body {
+    border-top: 10px solid #3E606F;
+  }
+}
