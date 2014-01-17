@@ -8,7 +8,7 @@ title: About Me
 </div>
 
 ## Who am I?
-I am a web develop at [Paperless Post] in New York City.
+I am a web developer at [Paperless Post] in New York City.
 We help you create online and paper stationery that reflects your individual aesthetic.
 And we are [hiring]!  
 
@@ -16,8 +16,8 @@ Currently, my main focus is on [Ruby] and [Ruby on Rails] but I am also interest
 Subscribe to my [RSS Feed] to follow my adventures in programming!
 
 ## What is this site for?
-I don't really blog but I wanted my personal website be more than a showcase of projects/work.
-So I decided to write posts about the latest things I've been messing around with.
+I'm not really a blogger but I wanted my personal website be more than a showcase of my work or projects.
+So, I decided to write posts about the latest things I've been messing around with.
 Writing articles or posts about technology is a good exercise in documenting my thoughts and exploring the
 content more depth. As a side effect, I hope my writing will help others in learning the material!  
 

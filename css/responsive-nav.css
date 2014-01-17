@@ -14,8 +14,7 @@
   border-top: 1px solid #FCFFF5;
 }
 
-.nav-collapse li .active, .nav-collapse li .active:hover,
-.nav-collapse li .active:focus {
+.nav-collapse li .active {
   background-color: #3E606F;
   color: white;
 }
@@ -91,5 +90,9 @@ body {
   }
   body {
     border-top: 10px solid #3E606F;
+  }
+  .nav-collapse li .active:hover, .nav-collapse li .active:focus {
+    background-color: #3E606F;
+    color: white;
   }
 }
