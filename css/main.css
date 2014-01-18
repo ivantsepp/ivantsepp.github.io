@@ -286,6 +286,7 @@ pre {
 
 .profile-picture {
   text-align: center;
+  height: 150px;
 }
 
 .profile-picture img {
