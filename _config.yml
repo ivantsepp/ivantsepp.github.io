@@ -4,7 +4,6 @@ tagline: My journey to better programming and beautiful code
 markdown: redcarpet
 pygments: true
 permalink: :title
-emoji_dir: /images/emoji
 timezone: America/New_York
 excerpt_separator: ""
 disqus_shortname: ivantseblog
