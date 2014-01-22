@@ -21,7 +21,7 @@ Instead, I will be writing posts about the latest things I've been hacking aroun
 This will be a good exercise in documenting my thoughts and exploring the
 content more depth. As a side effect, I hope my writing will help others learn a new thing or two.  
 
-Thanks for visiting my website and if you'd like, please leave some [feedback]!
+Thanks for visiting my website and if you'd like, please leave some [feedback] or buy me something from my [wishlist].
 
 [Paperless Post]: http://paperlesspost.com
 [hiring]: http://www.paperlesspost.com/about/jobs
@@ -29,3 +29,4 @@ Thanks for visiting my website and if you'd like, please leave some [feedback]!
 [RSS Feed]: atom.xml
 [Rails]: http://rubyonrails.org/
 [feedback]: https://github.com/ivantsepp/ivantsepp.github.io/issues/new
+[wishlist]: http://amzn.com/w/2FR82WMFJK9YE
