@@ -2,7 +2,7 @@ name: Ivan Tse
 email: ivan.tse1@gmail.com
 tagline: My journey to better programming and beautiful code
 markdown: redcarpet
-pygments: true
+highlighter: pygments
 permalink: :title
 timezone: America/New_York
 excerpt_separator: ""
