@@ -3,4 +3,5 @@ layout: page
 title: Projects
 ---
 
-Coming soon!
+## [Hr](https://github.com/ivantsepp/hr)
+An &lt;hr /> tag for your terminal
