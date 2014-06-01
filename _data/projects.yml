@@ -1,0 +1,7 @@
+- name: Hr
+  link: https://github.com/ivantsepp/hr
+  description: An &lt;hr /> tag for your terminal
+
+- name: ivantsepp.github.io
+  link: https://github.com/ivantsepp/ivantsepp.github.io
+  description: My personal website

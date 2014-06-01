@@ -3,5 +3,7 @@ layout: page
 title: Projects
 ---
 
-## [Hr](https://github.com/ivantsepp/hr)
-An &lt;hr /> tag for your terminal
+{% for project in site.data.projects %}
+## [{{ project.name }}]({{ project.link }})
+{{ project.description }}
+{% endfor %}
