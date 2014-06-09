@@ -7,3 +7,5 @@ permalink: :title
 timezone: America/New_York
 excerpt_separator: ""
 disqus_shortname: ivantseblog
+gems:
+  - jemoji
