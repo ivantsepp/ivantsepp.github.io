@@ -9,3 +9,4 @@ excerpt_separator: ""
 disqus_shortname: ivantseblog
 gems:
   - jemoji
+  - jekyll-mentions
