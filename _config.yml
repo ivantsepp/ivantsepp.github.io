@@ -1,12 +1,23 @@
 name: Ivan Tse
 email: ivan.tse1@gmail.com
 tagline: My journey to better programming and beautiful code
-markdown: redcarpet
 highlighter: pygments
 permalink: :title
 timezone: America/New_York
 excerpt_separator: ""
 disqus_shortname: ivantseblog
+markdown: HTMLPipeline
+html_pipeline:
+  filters:
+    - "markdownfilter"
+    - "syntaxhighlightfilter"
+    - "emojifilter"
+    - "mentionfilter"
+    - "autolinkfilter"
+    - "imagemaxwidthfilter"
+  context:
+    gfm: true
+    asset_root: "https://assets.github.com/images/icons/"
+    base_url: "https://github.com"
 gems:
-  - jemoji
-  - jekyll-mentions
+  - jekyll-html-pipeline
