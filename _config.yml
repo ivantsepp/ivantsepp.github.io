@@ -21,3 +21,4 @@ html_pipeline:
     base_url: "https://github.com"
 gems:
   - jekyll-html-pipeline
+  - jekyll-redirect-from
