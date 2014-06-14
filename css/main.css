@@ -111,6 +111,11 @@ img {
   border-radius: 5px;
 }
 
+.emoji {
+  display: inline-block;
+  margin: 0;
+}
+
 /* Tables */
 table {
   margin-bottom: 1rem;
