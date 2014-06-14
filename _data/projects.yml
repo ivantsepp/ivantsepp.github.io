@@ -5,3 +5,7 @@
 - name: ivantsepp.github.io
   link: https://github.com/ivantsepp/ivantsepp.github.io
   description: My personal website
+
+- name: Jekyll::AutolinkEmail
+  link: https://github.com/ivantsepp/jekyll-autolink_email
+  description: Autolink emails for your Jekyll site.
