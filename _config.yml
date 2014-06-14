@@ -1,3 +1,4 @@
+url: http://www.tseivan.com
 name: Ivan Tse
 email: ivan.tse1@gmail.com
 tagline: My journey to better programming and beautiful code
@@ -22,3 +23,10 @@ html_pipeline:
 gems:
   - jekyll-html-pipeline
   - jekyll-redirect-from
+  - jekyll-sitemap
+exclude:
+  - CNAME
+  - Gemfile
+  - Gemfile.lock
+  - Rakefile
+  - .gitignore
