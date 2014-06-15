@@ -25,7 +25,6 @@ gems:
   - jekyll-redirect-from
   - jekyll-sitemap
 exclude:
-  - CNAME
   - Gemfile
   - Gemfile.lock
   - Rakefile
