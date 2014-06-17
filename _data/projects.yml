@@ -8,4 +8,4 @@
 
 - name: Jekyll::AutolinkEmail
   link: https://github.com/ivantsepp/jekyll-autolink_email
-  description: Autolink emails for your Jekyll site.
+  description: Autolink emails for your Jekyll site
