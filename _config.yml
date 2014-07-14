@@ -24,6 +24,7 @@ gems:
   - jekyll-html-pipeline
   - jekyll-redirect-from
   - jekyll-sitemap
+  - jekyll-git_metadata
 exclude:
   - Gemfile
   - Gemfile.lock

@@ -17,6 +17,15 @@ I'm not a blogger so this isn't my personal blog. Instead, I will be writing pos
 
 Thanks for visiting my website and if you'd like, please leave some [feedback] or buy me something from my [wishlist].
 
+---
+
+## Site Statistics
+**Total Commits:** {{site.git.total_commits}}
+**Total Additions:** {{site.git.total_additions}}
+**Total Subtractions:** {{site.git.total_subtractions}}
+**Last Modified:** {{site.git.last_commit.commit_date | date_to_string}}
+**Last Commit Message:** {{site.git.last_commit.message}}
+
 [Paperless Post]: http://paperlesspost.com
 [hiring]: http://www.paperlesspost.com/about/jobs
 [Ruby]: https://ruby-lang.org/
