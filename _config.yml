@@ -25,6 +25,7 @@ gems:
   - jekyll-redirect-from
   - jekyll-sitemap
   - jekyll-git_metadata
+  - jekyll-autolink_email
 exclude:
   - Gemfile
   - Gemfile.lock
