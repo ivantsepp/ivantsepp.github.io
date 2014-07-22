@@ -32,3 +32,4 @@ exclude:
   - Rakefile
   - .gitignore
   - README.md
+  - vendor
