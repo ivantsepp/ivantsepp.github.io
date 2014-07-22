@@ -11,7 +11,7 @@ title: About Me
 I am a web developer at [Paperless Post] in New York City. We help you create online and paper stationery that reflects your individual aesthetic. And we are [hiring]!
 
 Currently, my main focus is on [Ruby] and [Rails] but I am also interested in Javascript. Subscribe to my [RSS Feed] to follow my adventures in programming.
-bad link [pp.com](http://paperlesspost.comm)
+
 ## What is this site for?
 I'm not a blogger so this isn't my personal blog. Instead, I will be writing posts about the latest things I've been hacking around with. This will be a good exercise in documenting my thoughts and exploring the content more depth. As a side effect, I hope my writing will help others learn a new thing or two.
 
@@ -28,7 +28,7 @@ Thanks for visiting my website and if you'd like, please leave some [feedback] o
 
 [Paperless Post]: http://paperlesspost.com
 [hiring]: http://www.paperlesspost.com/about/jobs
-[Ruby]: https://ruby-lang.org/
+[Ruby]: http://ruby-lang.org/
 [RSS Feed]: atom.xml
 [Rails]: http://rubyonrails.org/
 [feedback]: https://github.com/ivantsepp/ivantsepp.github.io/issues/new
