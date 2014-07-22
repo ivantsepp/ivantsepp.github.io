@@ -4,7 +4,7 @@ title: About Me
 ---
 
 <div class="profile-picture">
-  <img src="https://1.gravatar.com/avatar/2341c25ab7f4284c4c3d991b5318f8ad?d=https%3A%2F%2Fidenticons.github.com%2Fa8adfc15ac1e7baf833fab9d42a2bcd5.png&r=x&s=150" />
+  <img src="https://1.gravatar.com/avatar/2341c25ab7f4284c4c3d991b5318f8ad?d=https%3A%2F%2Fidenticons.github.com%2Fa8adfc15ac1e7baf833fab9d42a2bcd5.png&r=x&s=150" alt="Profile Picture" />
 </div>
 
 ## Who am I?

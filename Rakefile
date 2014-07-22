@@ -3,6 +3,7 @@ require 'rake'
 require 'jekyll'
 require 'tmpdir'
 require 'shellwords'
+require 'html/proofer'
 
 # http://blog.nitrous.io/2013/08/30/using-jekyll-plugins-on-github-pages.html
 
@@ -15,7 +16,7 @@ task :generate do
 end
 
 desc "Generate and publish blog to gh-pages"
-task :publish => [:generate] do
+task :publish => [:generate, :proof] do
   Dir.mktmpdir do |tmp|
     system "mv _site/* #{tmp}"
     unless %x{git status --short}.empty?
@@ -35,7 +36,11 @@ task :publish => [:generate] do
       system "git stash pop"
     end
   end
+end
 
+desc "HTML Proof the output"
+task :proof => [:generate] do
+  HTML::Proofer.new("./_site").run
 end
 
 task :default => :publish
