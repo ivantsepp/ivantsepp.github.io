@@ -1,7 +1,7 @@
 url: http://www.tseivan.com
 name: Ivan Tse
 email: ivan.tse1@gmail.com
-tagline: My journey to better programming and beautiful code. Demostrating pull/id/head.
+tagline: My journey to better programming and beautiful code. Demostrating pull/id/head. This is added by the 2nd pull request. Watch for the compare link!
 highlighter: pygments
 permalink: :title
 timezone: America/New_York
