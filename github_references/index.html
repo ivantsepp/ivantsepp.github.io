@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang=en>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>Ivan Tse - GitHub References</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+    <!-- exo font -->
+    <link href='http://fonts.googleapis.com/css?family=Exo+2:800,300' rel='stylesheet' type='text/css'>
+
+    <!-- syntax highlighting CSS -->
+    <link rel="stylesheet" href="/css/syntax.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/main.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/responsive-nav.css">
+
+  </head>
+    <body>
+      <nav class="nav-collapse">
+  <ul>
+    <li><a class=""href="/">Home</a></li>
+
+    
+    
+      
+        
+      
+    
+      
+        
+          <li><a class="" href="/about.html">About Me</a></li>
+        
+      
+    
+      
+    
+      
+        
+      
+    
+      
+        
+          <li><a class="" href="/projects.html">Projects</a></li>
+        
+      
+    
+
+  </ul>
+</nav>
+
+      <div class="container">
+
+        <header>
+  <h1 class="title"><a href="/">Ivan<strong>Tse</strong></a></h1>
+  <p class="tagline">My journey to better programming and beautiful code</p>
+</header>
+
+        <h1 class="post-title">GitHub References</h1>
+<p class="meta">Aug 17, 2014 | 3 minutes read</p>
+
+<div class="post">
+<p>There are two special types of references that are available in your GitHub hosted repository. GitHub creates these references for each pull request; they are <code>pull/:id/head</code> and <code>pull/:id/merge</code>. Let's review them and how they can be useful.</p>
+
+<h2>Pull Request Head</h2>
+
+<p>This reference points to the latest commit of the pull request. GitHub automatically stashes all the changes for a pull request against the main repository. Why does GitHub do this and why is it useful? Well, one would expect that when the requester deletes his/her fork, the changes are also lost. However, this is not true. You are still able to merge a pull request because those changes are "saved" in the pull request head reference.</p>
+
+<p>One could also checkout the pull request locally without ever having to add a remote. You could also <a href="https://help.github.com/articles/checking-out-pull-requests-locally#modifying-an-inactive-pull-request-locally">modify it locally</a> if the pull request has become stale and now conflicts with master.</p>
+
+<p>One way I've found this knowledge to be very useful is that it allows you to do a compare across pull requests on GitHub. Often, you may find yourself working on a pull request that includes another pull request. That is, your pull request depends on the work done in another pull request. When a code reviewer looks at the diff on GitHub, it includes changes from <strong>both</strong> pull requests but really, the code reviewer only wants to focus on the changes you made specifically for your pull request. To get that view, just make a compare between those pull requests references. I made a quick demostration of this: <a href="https://github.com/ivantsepp/ivantsepp.github.io/pull/8">the second pull request</a> works on top of <a href="https://github.com/ivantsepp/ivantsepp.github.io/pull/7">the first pull request</a> but the <a href="https://github.com/ivantsepp/ivantsepp.github.io/compare/pull%2F7%2Fhead...pull%2F8%2Fhead?w=1">compare link</a> only shows the commits made in the second pull request.</p>
+
+<p>As a side note, just as you can hide whitespace diff with <code>git diff -w</code> or <code>git diff --ignore-all-space</code> on the command line, you can add <code>?w=1</code> to the URL to get the same effect with the GitHub view. There are some other <a href="https://github.com/blog/967-github-secrets">useful GitHub secrets</a> you should check out.</p>
+
+<p>Another way I used this GitHub supported functionality is extending the concept of checking out a pull request locally. <a href="https://github.com/princesspretzel" class="user-mention">@princesspretzel</a>, who came up with this idea, wanted to be able to open all the files corresponding to a pull request. I see two use cases for this functionality:</p>
+
+<ul>
+<li>You are switching between branches and want to open all the files you've changed to resume work.</li>
+<li>You are code reviewing a massive branch and want to open the files to view changes instead of constantly scrolling the long diff.</li>
+</ul>
+
+<p>To acheive this, we can consult the <a href="https://developer.github.com/v3/pulls/#list-pull-requests-files">GitHub Pull Request API</a> to get a list of modified files for a pull request. Then we can checkout the pull request locally using <code>pull/:id/head</code>. This step is important since this is how the developer is able to see the changes in the editor (the pull request might've added new files). We are currently working on a <a href="https://github.com/princesspretzel/spoke">sublime plugin</a> that does just that and I've created this command in <a href="https://github.com/ivantsepp/github_tools">GithubTools</a>, my collection of command line tools for GitHub.</p>
+
+<h2>Pull Request Merge</h2>
+
+<p>The pull request merge reference points to the merge commit between the pull request and the base branch. I believe that GitHub creates this commit to test the mergeability of the pull request. How can this reference be useful for you? Well, TravisCI uses it to get a copy of the repository as if the pull request has been merged. Then, it will run the tests against this working copy. If you look at <a href="https://travis-ci.org/jekyll/jekyll/jobs/32736147">this example</a>, you can see the job runs <code>git fetch origin +refs/pull/2762/merge:</code> followed by a <code>git checkout -qf FETCH_HEAD</code> command.</p>
+
+<p>Another hypothetically use case for reference is checking mergeability without hitting the API. You can determine <a href="https://developer.github.com/v3/pulls/#mergability">mergeability</a> by hitting the API but we can do this programmatically without the API. One could fetch both the pull request head and the pull request merge references and determine if the latest sha in the pull request is in the history of the merge commit. The pull request is mergeable if so and not mergeable otherwise. I am planning on testing this out and implementing it in <a href="https://github.com/ivantsepp/github_tools">GithubTools</a>.</p>
+
+<hr>
+
+<p>Let me know if you know of any other cool ways of using GitHub's special references for creating a better workflow. Here are some external links that you definitely should check out:</p>
+
+<ul>
+<li>
+<a href="http://zachholman.com/talk/more-git-and-github-secrets/">Zach Holman's talk "More Git and GitHub Secrets"</a> - This is where I learned about these references. The talk also has some of nice nuggets of information.</li>
+<li>
+<a href="http://christoph.ruegg.name/blog/git-howto-mirror-a-github-repository-without-pull-refs.html">Git Howto: Mirror a GitHub Repo Without Pull Refs</a> - I came across this blog post while writing this. The post shows you how to mirror a GitHub repository without copying these references</li>
+<li>
+<a href="https://coderwall.com/p/3dgwcg">GitHub: add remote for pulls and merges</a> - Add a remote refspec for grabbing these pull request head and merge references</li>
+</ul>
+</div>
+
+<div id="disqus_thread"></div><!-- /#disqus_thread -->
+
+
+        <footer>
+  This site is powered by <a href="http://jekyllrb.com">Jekyll</a> and hosted by <a href="http://pages.github.com/">GitHub Pages</a>. You can view the source <a href="https://github.com/ivantsepp/ivantsepp.github.io">here</a>.
+</footer>
+
+      </div>
+    <!-- Discus Javascript -->
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+    var disqus_shortname = 'ivantseblog'; // required: replace example with your forum shortname
+
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+<script src="/javascript/responsive-nav.min.js"></script>
+<script>
+  var nav = responsiveNav(".nav-collapse", {
+    label: "",
+    insert: "after"
+  });
+</script>
+    </body>
+</html>

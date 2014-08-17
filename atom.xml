@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://www.tseivan.com/atom.xml" rel="self"/>
  <link href="http://www.tseivan.com/"/>
- <updated>2014-07-14T04:24:02-04:00</updated>
+ <updated>2014-08-17T17:44:50-04:00</updated>
  <id>http://www.tseivan.com</id>
  <author>
    <name>Ivan Tse</name>
@@ -13,24 +13,49 @@
 
  
  <entry>
-   <title>Welcome to Jekyll!</title>
-   <link href="http://www.tseivan.com/welcome-to-jekyll"/>
-   <updated>2013-11-25T09:35:13-05:00</updated>
-   <id>http://www.tseivan.com/welcome-to-jekyll</id>
-   <content type="html">&lt;p&gt;You&#39;ll find this post in your &lt;code&gt;_posts&lt;/code&gt; directory - edit this post and re-build (or run with the &lt;code&gt;-w&lt;/code&gt; switch) to see your changes!&lt;br&gt;
-To add new posts, simply add a file in the &lt;code&gt;_posts&lt;/code&gt; directory that follows the convention: YYYY-MM-DD-name-of-post.ext.&lt;/p&gt;
+   <title>GitHub References</title>
+   <link href="http://www.tseivan.com/github_references"/>
+   <updated>2014-08-17T14:53:14-04:00</updated>
+   <id>http://www.tseivan.com/github_references</id>
+   <content type="html">&lt;p&gt;There are two special types of references that are available in your GitHub hosted repository. GitHub creates these references for each pull request; they are &lt;code&gt;pull/:id/head&lt;/code&gt; and &lt;code&gt;pull/:id/merge&lt;/code&gt;. Let&#39;s review them and how they can be useful.&lt;/p&gt;
 
-&lt;p&gt;Jekyll also offers powerful support for code snippets: (&lt;a href=&quot;https://assets.github.com/images/icons/emoji/+1.png&quot; target=&quot;_blank&quot;&gt;&lt;img class=&quot;emoji&quot; title=&quot;:+1:&quot; alt=&quot;:+1:&quot; src=&quot;https://assets.github.com/images/icons/emoji/+1.png&quot; height=&quot;20&quot; width=&quot;20&quot; align=&quot;absmiddle&quot; style=&quot;max-width:100%;&quot;&gt;&lt;/a&gt;)&lt;/p&gt;
+&lt;h2&gt;Pull Request Head&lt;/h2&gt;
 
-&lt;div class=&quot;highlight highlight-ruby&quot;&gt;&lt;pre&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;print_hi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;nb&quot;&gt;puts&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Hi, &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;print_hi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&#39;Tom&#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;#=&amp;gt; prints &#39;Hi, Tom&#39; to STDOUT.&lt;/span&gt;
-&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This reference points to the latest commit of the pull request. GitHub automatically stashes all the changes for a pull request against the main repository. Why does GitHub do this and why is it useful? Well, one would expect that when the requester deletes his/her fork, the changes are also lost. However, this is not true. You are still able to merge a pull request because those changes are &quot;saved&quot; in the pull request head reference.&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;https://assets.github.com/images/icons/emoji/+1.png&quot; target=&quot;_blank&quot;&gt;&lt;img class=&quot;emoji&quot; title=&quot;:+1:&quot; alt=&quot;:+1:&quot; src=&quot;https://assets.github.com/images/icons/emoji/+1.png&quot; height=&quot;20&quot; width=&quot;20&quot; align=&quot;absmiddle&quot; style=&quot;max-width:100%;&quot;&gt;&lt;/a&gt;&lt;br&gt;
-Check out the &lt;a href=&quot;http://jekyllrb.com&quot;&gt;Jekyll docs&lt;/a&gt; for more info on how to get the most out of Jekyll. File all bugs/feature requests at &lt;a href=&quot;https://github.com/mojombo/jekyll&quot;&gt;Jekyll&#39;s GitHub repo&lt;/a&gt;.&lt;/p&gt;</content>
+&lt;p&gt;One could also checkout the pull request locally without ever having to add a remote. You could also &lt;a href=&quot;https://help.github.com/articles/checking-out-pull-requests-locally#modifying-an-inactive-pull-request-locally&quot;&gt;modify it locally&lt;/a&gt; if the pull request has become stale and now conflicts with master.&lt;/p&gt;
+
+&lt;p&gt;One way I&#39;ve found this knowledge to be very useful is that it allows you to do a compare across pull requests on GitHub. Often, you may find yourself working on a pull request that includes another pull request. That is, your pull request depends on the work done in another pull request. When a code reviewer looks at the diff on GitHub, it includes changes from &lt;strong&gt;both&lt;/strong&gt; pull requests but really, the code reviewer only wants to focus on the changes you made specifically for your pull request. To get that view, just make a compare between those pull requests references. I made a quick demostration of this: &lt;a href=&quot;https://github.com/ivantsepp/ivantsepp.github.io/pull/8&quot;&gt;the second pull request&lt;/a&gt; works on top of &lt;a href=&quot;https://github.com/ivantsepp/ivantsepp.github.io/pull/7&quot;&gt;the first pull request&lt;/a&gt; but the &lt;a href=&quot;https://github.com/ivantsepp/ivantsepp.github.io/compare/pull%2F7%2Fhead...pull%2F8%2Fhead?w=1&quot;&gt;compare link&lt;/a&gt; only shows the commits made in the second pull request.&lt;/p&gt;
+
+&lt;p&gt;As a side note, just as you can hide whitespace diff with &lt;code&gt;git diff -w&lt;/code&gt; or &lt;code&gt;git diff --ignore-all-space&lt;/code&gt; on the command line, you can add &lt;code&gt;?w=1&lt;/code&gt; to the URL to get the same effect with the GitHub view. There are some other &lt;a href=&quot;https://github.com/blog/967-github-secrets&quot;&gt;useful GitHub secrets&lt;/a&gt; you should check out.&lt;/p&gt;
+
+&lt;p&gt;Another way I used this GitHub supported functionality is extending the concept of checking out a pull request locally. &lt;a href=&quot;https://github.com/princesspretzel&quot; class=&quot;user-mention&quot;&gt;@princesspretzel&lt;/a&gt;, who came up with this idea, wanted to be able to open all the files corresponding to a pull request. I see two use cases for this functionality:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;You are switching between branches and want to open all the files you&#39;ve changed to resume work.&lt;/li&gt;
+&lt;li&gt;You are code reviewing a massive branch and want to open the files to view changes instead of constantly scrolling the long diff.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;To acheive this, we can consult the &lt;a href=&quot;https://developer.github.com/v3/pulls/#list-pull-requests-files&quot;&gt;GitHub Pull Request API&lt;/a&gt; to get a list of modified files for a pull request. Then we can checkout the pull request locally using &lt;code&gt;pull/:id/head&lt;/code&gt;. This step is important since this is how the developer is able to see the changes in the editor (the pull request might&#39;ve added new files). We are currently working on a &lt;a href=&quot;https://github.com/princesspretzel/spoke&quot;&gt;sublime plugin&lt;/a&gt; that does just that and I&#39;ve created this command in &lt;a href=&quot;https://github.com/ivantsepp/github_tools&quot;&gt;GithubTools&lt;/a&gt;, my collection of command line tools for GitHub.&lt;/p&gt;
+
+&lt;h2&gt;Pull Request Merge&lt;/h2&gt;
+
+&lt;p&gt;The pull request merge reference points to the merge commit between the pull request and the base branch. I believe that GitHub creates this commit to test the mergeability of the pull request. How can this reference be useful for you? Well, TravisCI uses it to get a copy of the repository as if the pull request has been merged. Then, it will run the tests against this working copy. If you look at &lt;a href=&quot;https://travis-ci.org/jekyll/jekyll/jobs/32736147&quot;&gt;this example&lt;/a&gt;, you can see the job runs &lt;code&gt;git fetch origin +refs/pull/2762/merge:&lt;/code&gt; followed by a &lt;code&gt;git checkout -qf FETCH_HEAD&lt;/code&gt; command.&lt;/p&gt;
+
+&lt;p&gt;Another hypothetically use case for reference is checking mergeability without hitting the API. You can determine &lt;a href=&quot;https://developer.github.com/v3/pulls/#mergability&quot;&gt;mergeability&lt;/a&gt; by hitting the API but we can do this programmatically without the API. One could fetch both the pull request head and the pull request merge references and determine if the latest sha in the pull request is in the history of the merge commit. The pull request is mergeable if so and not mergeable otherwise. I am planning on testing this out and implementing it in &lt;a href=&quot;https://github.com/ivantsepp/github_tools&quot;&gt;GithubTools&lt;/a&gt;.&lt;/p&gt;
+
+&lt;hr&gt;
+
+&lt;p&gt;Let me know if you know of any other cool ways of using GitHub&#39;s special references for creating a better workflow. Here are some external links that you definitely should check out:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;
+&lt;a href=&quot;http://zachholman.com/talk/more-git-and-github-secrets/&quot;&gt;Zach Holman&#39;s talk &quot;More Git and GitHub Secrets&quot;&lt;/a&gt; - This is where I learned about these references. The talk also has some of nice nuggets of information.&lt;/li&gt;
+&lt;li&gt;
+&lt;a href=&quot;http://christoph.ruegg.name/blog/git-howto-mirror-a-github-repository-without-pull-refs.html&quot;&gt;Git Howto: Mirror a GitHub Repo Without Pull Refs&lt;/a&gt; - I came across this blog post while writing this. The post shows you how to mirror a GitHub repository without copying these references&lt;/li&gt;
+&lt;li&gt;
+&lt;a href=&quot;https://coderwall.com/p/3dgwcg&quot;&gt;GitHub: add remote for pulls and merges&lt;/a&gt; - Add a remote refspec for grabbing these pull request head and merge references&lt;/li&gt;
+&lt;/ul&gt;</content>
  </entry>
  
 
