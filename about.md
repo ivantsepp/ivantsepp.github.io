@@ -1,6 +1,7 @@
 ---
 layout: page
 title: About Me
+permalink: /about/
 ---
 
 <div class="profile-picture">
