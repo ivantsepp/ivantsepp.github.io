@@ -4,25 +4,13 @@
  <title></title>
  <link href="http://www.tseivan.com/atom.xml" rel="self"/>
  <link href="http://www.tseivan.com/"/>
- <updated>2014-08-26T01:02:41-04:00</updated>
+ <updated>2014-08-26T01:09:28-04:00</updated>
  <id>http://www.tseivan.com</id>
  <author>
    <name>Ivan Tse</name>
    <email>ivan.tse1@gmail.com</email>
  </author>
 
- 
- <entry>
-   <title>My Venture into Jekyll</title>
-   <link href="http://www.tseivan.com/my_venture_into_jekyll"/>
-   <updated>2014-08-20T00:00:00-04:00</updated>
-   <id>http://www.tseivan.com/my_venture_into_jekyll</id>
-   <content type="html">&lt;p&gt;&lt;a href=&quot;https://kuler.adobe.com/Neutral-Blue-color-theme-22361/&quot;&gt;https://kuler.adobe.com/Neutral-Blue-color-theme-22361/&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;My Venture into Jekyll&lt;/p&gt;
-
-&lt;p&gt;GitHub References&lt;/p&gt;</content>
- </entry>
  
  <entry>
    <title>GitHub References</title>
