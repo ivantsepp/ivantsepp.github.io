@@ -3,6 +3,12 @@
   
   
   <url>
+    <loc>http://www.tseivan.com/my_venture_into_jekyll</loc>
+    <lastmod>2014-08-20T00:00:00-04:00</lastmod>
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
     <loc>http://www.tseivan.com/github_references</loc>
     <lastmod>2014-08-17T14:53:14-04:00</lastmod>
     <priority>0.8</priority>
@@ -11,28 +17,28 @@
   
   <url>
     <loc>http://www.tseivan.com/404.html</loc>
-    <lastmod>2014-08-18T13:56:43-04:00</lastmod>
+    <lastmod>2014-08-26T01:02:41-04:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
-    <loc>http://www.tseivan.com/about.html</loc>
-    <lastmod>2014-08-18T13:56:43-04:00</lastmod>
+    <loc>http://www.tseivan.com/about/</loc>
+    <lastmod>2014-08-26T01:02:41-04:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
     <loc>http://www.tseivan.com/</loc>
-    <lastmod>2014-08-18T13:56:43-04:00</lastmod>
+    <lastmod>2014-08-26T01:02:41-04:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   
   <url>
-    <loc>http://www.tseivan.com/projects.html</loc>
-    <lastmod>2014-08-18T13:56:43-04:00</lastmod>
+    <loc>http://www.tseivan.com/projects/</loc>
+    <lastmod>2014-08-26T01:02:41-04:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>

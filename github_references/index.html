@@ -18,6 +18,8 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/css/responsive-nav.css">
 
+    <link rel="canonical" href="http://www.tseivan.com/github_references" />
+
   </head>
     <body>
       <nav class="nav-collapse">
@@ -32,7 +34,7 @@
     
       
         
-          <li><a class="" href="/about.html">About Me</a></li>
+          <li><a class="" href="/about/">About Me</a></li>
         
       
     
@@ -44,7 +46,7 @@
     
       
         
-          <li><a class="" href="/projects.html">Projects</a></li>
+          <li><a class="" href="/projects/">Projects</a></li>
         
       
     
@@ -88,7 +90,7 @@
 
 <p>The pull request merge reference points to the merge commit between the pull request and the base branch. I believe that GitHub creates this commit to test the mergeability of the pull request. How can this reference be useful? Well, TravisCI uses it to get a copy of the repository as if the pull request has been merged. Then, it will run the tests against this working copy. If you look at <a href="https://travis-ci.org/jekyll/jekyll/jobs/32736147">this example</a>, you can see the job runs <code>git fetch origin +refs/pull/2762/merge:</code> followed by a <code>git checkout -qf FETCH_HEAD</code> command.</p>
 
-<p>Another hypothetically use case for this reference is checking mergeability. You can determine <a href="https://developer.github.com/v3/pulls/#mergability">mergeability</a> by using the API but we can do this programmatically without the API call. One could fetch both the pull request head and the pull request merge references and determine if the latest sha in the pull request is in the history of the merge commit. The pull request is mergeable if so and not mergeable otherwise. I am planning on testing this out and implementing it in <a href="https://github.com/ivantsepp/github_tools">GithubTools</a>.</p>
+<p>Another hypothetical use case for this reference is checking mergeability. You can determine <a href="https://developer.github.com/v3/pulls/#mergability">mergeability</a> by using the API but we can do this programmatically without the API call. One could fetch both the pull request head and the pull request merge references and determine if the latest sha in the pull request is in the history of the merge commit. The pull request is mergeable if so and not mergeable otherwise. I am planning on testing this out and implementing it in <a href="https://github.com/ivantsepp/github_tools">GithubTools</a>.</p>
 
 <hr>
 
@@ -134,5 +136,7 @@
     insert: "after"
   });
 </script>
+<script src="/javascript/anchor.js"></script>
+
     </body>
 </html>
