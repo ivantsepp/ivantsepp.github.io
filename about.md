@@ -30,7 +30,7 @@ Thanks for visiting my website and if you'd like, please leave some [feedback] o
 [Paperless Post]: http://paperlesspost.com
 [hiring]: http://www.paperlesspost.com/about/jobs
 [Ruby]: http://ruby-lang.org/
-[RSS Feed]: /atom.xml
+[RSS Feed]: /feed.atom
 [Rails]: http://rubyonrails.org/
 [feedback]: https://github.com/ivantsepp/ivantsepp.github.io/issues/new
 [wishlist]: http://amzn.com/w/2FR82WMFJK9YE
