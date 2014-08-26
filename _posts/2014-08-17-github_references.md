@@ -2,6 +2,7 @@
 layout: post
 title:  "GitHub References"
 date:   2014-08-17 18:53:14
+description: "Two special git references created for each pull request"
 categories: git github
 comments: true
 ---
