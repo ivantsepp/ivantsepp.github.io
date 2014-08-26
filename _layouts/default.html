@@ -17,8 +17,9 @@
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/css/responsive-nav.css">
-
+    {% if page.title != '404' %}
     <link rel="canonical" href="{{ site.url }}{{ page.url }}" />
+    {% endif %}
 
   </head>
     <body>
