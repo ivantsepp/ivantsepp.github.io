@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://www.tseivan.com/atom.xml" rel="self"/>
  <link href="http://www.tseivan.com/"/>
- <updated>2014-10-16T02:21:39-04:00</updated>
+ <updated>2014-10-16T02:52:07-04:00</updated>
  <id>http://www.tseivan.com</id>
  <author>
    <name>Ivan Tse</name>
@@ -25,13 +25,15 @@
 
 &lt;p&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=pTmTh7LNVic&quot;&gt;Building an ORM with AReL: Walking up the (AS)Tree&lt;/a&gt; - A quick introduction to how an ORM is coded. There are concepts like adapters, types, builder, column, attributes, attribute set, etc... Vipul Amler basically does a walkthrough of &lt;a href=&quot;https://github.com/prathamesh-sonpatki/torm&quot;&gt;TORM - Tiny implementation of ORM on top of ARel&lt;/a&gt;.&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=asttlUG2OuI&quot;&gt;Why We Can&#39;t Have Nice Things: Floats, Dates, and Names&lt;/a&gt; - I remember watching this talk from some other conference. Regardless, this is a funny and interesting look at the weird edge cases of floats, dates, and names when we make bad assumptions.&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=asttlUG2OuI&quot;&gt;Why We Can&#39;t Have Nice Things: Floats, Dates, and Names&lt;/a&gt; - I remember watching this talk from some other conference. Regardless, this is a funny and interesting look at the weird edge cases of floats, dates, and names when we make bad assumptions. John Feminella has made a repo for exploring Ruby&#39;s Float internals &lt;a href=&quot;https://github.com/fj/floatboat&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=EcnvbsXdbtI&quot;&gt;Building Board Games with Ruby&lt;/a&gt; - I thought this was a very interesting talk as Yonatan Bergman uses Ruby to tests out how well his board game does via simulations. &lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=EcnvbsXdbtI&quot;&gt;Building Board Games with Ruby&lt;/a&gt; - I thought this was a very interesting talk as Yonatan Bergman uses Ruby to tests out how well his board game does via simulations. &lt;a href=&quot;https://github.com/yonbergman/missiles_and_microchips&quot;&gt;Here is his repo&lt;/a&gt;.&lt;/p&gt;
 
 &lt;p&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=4tBCDOgtWCg&quot;&gt;The Short and Happy Lives of TCP and HTTP Requests&lt;/a&gt; - Starr Horne talks about the protocol of the Web and how we can optimize it. A lot of this stuff is above my head but this is a reminder to read &lt;a href=&quot;http://chimera.labs.oreilly.com/books/1230000000545&quot;&gt;High Performance Browser Networking&lt;/a&gt;.&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;http://codon.com/refactoring-ruby-with-monads&quot;&gt;Refactoring Ruby with Monads&lt;/a&gt; - One of the best talks I&#39;ve ever seen. Tom Stuart introduces the concept of monads and it&#39;s really mind blowing because I never thought about things (he has 3 real world examples) like that before. I like the way he presented and his understandable explanations. I need to check out his other works!&lt;/p&gt;</content>
+&lt;p&gt;&lt;a href=&quot;http://codon.com/refactoring-ruby-with-monads&quot;&gt;Refactoring Ruby with Monads&lt;/a&gt; - One of the best talks I&#39;ve ever seen. Tom Stuart introduces the concept of monads and it&#39;s really mind blowing because I never thought about things (he has 3 real world examples) like that before. I like the way he presented and his understandable explanations. I need to check out his other works!&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/ConradIrwin/console.log&quot;&gt;console.log gem&lt;/a&gt; - In one of the lightning talks, Conrad Irwin talks about the console.log gem that spits any object in the console of the browser. Looks very cool and I need to check it out!&lt;/p&gt;</content>
  </entry>
  
  <entry>
