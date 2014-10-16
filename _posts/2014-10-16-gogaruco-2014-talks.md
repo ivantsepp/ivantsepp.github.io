@@ -15,10 +15,12 @@ My main source of talks are from [Confreaks](https://www.youtube.com/user/Confre
 
 [Building an ORM with AReL: Walking up the (AS)Tree](https://www.youtube.com/watch?v=pTmTh7LNVic) - A quick introduction to how an ORM is coded. There are concepts like adapters, types, builder, column, attributes, attribute set, etc... Vipul Amler basically does a walkthrough of [TORM - Tiny implementation of ORM on top of ARel](https://github.com/prathamesh-sonpatki/torm).
 
-[Why We Can't Have Nice Things: Floats, Dates, and Names](https://www.youtube.com/watch?v=asttlUG2OuI) - I remember watching this talk from some other conference. Regardless, this is a funny and interesting look at the weird edge cases of floats, dates, and names when we make bad assumptions.
+[Why We Can't Have Nice Things: Floats, Dates, and Names](https://www.youtube.com/watch?v=asttlUG2OuI) - I remember watching this talk from some other conference. Regardless, this is a funny and interesting look at the weird edge cases of floats, dates, and names when we make bad assumptions. John Feminella has made a repo for exploring Ruby's Float internals [here](https://github.com/fj/floatboat).
 
-[Building Board Games with Ruby](https://www.youtube.com/watch?v=EcnvbsXdbtI) - I thought this was a very interesting talk as Yonatan Bergman uses Ruby to tests out how well his board game does via simulations. 
+[Building Board Games with Ruby](https://www.youtube.com/watch?v=EcnvbsXdbtI) - I thought this was a very interesting talk as Yonatan Bergman uses Ruby to tests out how well his board game does via simulations. [Here is his repo](https://github.com/yonbergman/missiles_and_microchips).
 
 [The Short and Happy Lives of TCP and HTTP Requests](https://www.youtube.com/watch?v=4tBCDOgtWCg) - Starr Horne talks about the protocol of the Web and how we can optimize it. A lot of this stuff is above my head but this is a reminder to read [High Performance Browser Networking](http://chimera.labs.oreilly.com/books/1230000000545).
 
 [Refactoring Ruby with Monads](http://codon.com/refactoring-ruby-with-monads) - One of the best talks I've ever seen. Tom Stuart introduces the concept of monads and it's really mind blowing because I never thought about things (he has 3 real world examples) like that before. I like the way he presented and his understandable explanations. I need to check out his other works!
+
+[console.log gem](https://github.com/ConradIrwin/console.log) - In one of the lightning talks, Conrad Irwin talks about the console.log gem that spits any object in the console of the browser. Looks very cool and I need to check it out!
