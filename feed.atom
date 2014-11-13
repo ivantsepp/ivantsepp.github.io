@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://www.tseivan.com/atom.xml" rel="self"/>
  <link href="http://www.tseivan.com/"/>
- <updated>2014-11-13T04:41:37-05:00</updated>
+ <updated>2014-11-13T04:43:43-05:00</updated>
  <id>http://www.tseivan.com</id>
  <author>
    <name>Ivan Tse</name>
@@ -21,7 +21,7 @@
 
 &lt;h1&gt;Overall Review&lt;/h1&gt;
 
-&lt;p&gt;I actually learned a few new tips and tricks from this book. It was nice to read a book that&#39;s mainly focused on the view end of Rails. And I was surprised by the amount of things I learned since I didn&#39;t really know there was that much to talk about for views. However, the book did go in a bit of a tangent regarding Sass (I am biased though since I already knew the syntax before reading this book). Overall I would definitely recommend this book! Go check out their &lt;a href=&quot;http://www.therailsview.com/&quot;&gt;website&lt;/a&gt; and the &lt;a href=&quot;&quot;&gt;rules&lt;/a&gt; they have on Rails view layer.&lt;/p&gt;
+&lt;p&gt;I actually learned a few new tips and tricks from this book. It was nice to read a book that&#39;s mainly focused on the view end of Rails. And I was surprised by the amount of things I learned since I didn&#39;t really know there was that much to talk about for views. However, the book did go in a bit of a tangent regarding Sass (I am biased though since I already knew the syntax before reading this book). Overall I would definitely recommend this book! Go check out their &lt;a href=&quot;http://www.therailsview.com/&quot;&gt;website&lt;/a&gt; and the &lt;a href=&quot;http://www.therailsview.com/rules.pdf&quot;&gt;rules&lt;/a&gt; they have on Rails view layer.&lt;/p&gt;
 
 &lt;h1&gt;Chapter 1&lt;/h1&gt;
 
