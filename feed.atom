@@ -4,13 +4,177 @@
  <title></title>
  <link href="http://www.tseivan.com/atom.xml" rel="self"/>
  <link href="http://www.tseivan.com/"/>
- <updated>2014-10-16T02:52:07-04:00</updated>
+ <updated>2014-11-13T04:41:37-05:00</updated>
  <id>http://www.tseivan.com</id>
  <author>
    <name>Ivan Tse</name>
    <email>ivan.tse1@gmail.com</email>
  </author>
 
+ 
+ <entry>
+   <title>The Rails View book notes</title>
+   <link href="http://www.tseivan.com/the-rails-view-notes"/>
+   <updated>2014-11-13T00:00:00-05:00</updated>
+   <id>http://www.tseivan.com/the-rails-view-notes</id>
+   <content type="html">&lt;p&gt;&lt;a href=&quot;http://www.amazon.com/The-Rails-View-Maintainable-Experience/dp/1934356875&quot;&gt;&lt;img src=&quot;http://ecx.images-amazon.com/images/I/41kBEVA%2B7pL.jpg&quot; alt=&quot;The Rails View book cover&quot; style=&quot;max-width:100%;&quot;&gt;&lt;/a&gt;&lt;/p&gt;
+
+&lt;h1&gt;Overall Review&lt;/h1&gt;
+
+&lt;p&gt;I actually learned a few new tips and tricks from this book. It was nice to read a book that&#39;s mainly focused on the view end of Rails. And I was surprised by the amount of things I learned since I didn&#39;t really know there was that much to talk about for views. However, the book did go in a bit of a tangent regarding Sass (I am biased though since I already knew the syntax before reading this book). Overall I would definitely recommend this book! Go check out their &lt;a href=&quot;http://www.therailsview.com/&quot;&gt;website&lt;/a&gt; and the &lt;a href=&quot;&quot;&gt;rules&lt;/a&gt; they have on Rails view layer.&lt;/p&gt;
+
+&lt;h1&gt;Chapter 1&lt;/h1&gt;
+
+&lt;ul&gt;
+&lt;li&gt;If you don&#39;t specify the folder in the partial file name, Rails will look for the file in the current controller’s view directory&lt;/li&gt;
+&lt;li&gt;Use &lt;code&gt;yield :sidebar&lt;/code&gt;, &lt;code&gt;content_for :sidebar do&lt;/code&gt;, and &lt;code&gt;content_for?(:sidebar)&lt;/code&gt; to allow content in the view to hook into the layout.&lt;/li&gt;
+&lt;li&gt;There is a nifty solution for how to handle navigation in Rails. Put nav in a partial that uses &lt;code&gt;content_for&lt;/code&gt;. Then, use a helper method to render this partial with a local variable dictating what the current page is:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;currently_at&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tab&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;render&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;partial&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#39;layouts/main_nav&#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;locals&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;current_tab&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tab&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+&lt;li&gt;
+&lt;code&gt;flash[:notice]&lt;/code&gt;, &lt;code&gt;flash[:alert]&lt;/code&gt; and the corresponding &lt;code&gt;alert&lt;/code&gt;, and &lt;code&gt;notice&lt;/code&gt; helper methods.&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://github.com/bruce/ie_conditional_tag&quot;&gt;ie_conditional_tag gem&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1&gt;Chapter 2&lt;/h1&gt;
+
+&lt;ul&gt;
+&lt;li&gt;
+&lt;code&gt;raw&lt;/code&gt; method (similar to &lt;code&gt;html_safe&lt;/code&gt;), &lt;code&gt;link_to&lt;/code&gt;, &lt;code&gt;image_tag&lt;/code&gt;, &lt;code&gt;number_to_currency&lt;/code&gt;, &lt;code&gt;number_to_human_size&lt;/code&gt;
+&lt;/li&gt;
+&lt;li&gt;Use this to avoid putting law of demeter solution in model and avoid being tied to having &lt;a href=&quot;https://github.com/creation&quot; class=&quot;user-mention&quot;&gt;@creation&lt;/a&gt; present (it&#39;s a default parameter):&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;creation_client_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;creation&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;vi&quot;&gt;@creation&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;creation&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;project&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Use this to render collections so that the html for an item is abstracted away as well as the iteration (which should be Rails responsibility):&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;%=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;render&lt;/span&gt; &lt;span class=&quot;vi&quot;&gt;@creations&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Move if/elsif/else clause into separate partials and a helper that renders the correct partial:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;%=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;controls_for_creation&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;creation&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+&lt;li&gt;extract long conditions to method_name? helpers. You can even &lt;code&gt;yield&lt;/code&gt; in that method so that it can take a block of html&lt;/li&gt;
+&lt;li&gt;Use content_tag_for when attributes become complex (use &lt;code&gt;dom_id&lt;/code&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1&gt;Chapter 3&lt;/h1&gt;
+
+&lt;ul&gt;
+&lt;li&gt;sprockets looks in these folders: &lt;code&gt;app/assets&lt;/code&gt; for application code, &lt;code&gt;lib/assets&lt;/code&gt; for code used in several projects, &lt;code&gt;vendor/assets&lt;/code&gt; for 3rd party code&lt;/li&gt;
+&lt;li&gt;directives: &lt;code&gt;require_tree&lt;/code&gt; to require a directory recursively and alphabetically, &lt;code&gt;require_self&lt;/code&gt; for the file itself&lt;/li&gt;
+&lt;li&gt;
+&lt;code&gt;rails runner &quot;y Rails.configuration.assets.paths&quot;&lt;/code&gt; to see where sprocket finds the files&lt;/li&gt;
+&lt;li&gt;Use require when you just want to shove content together and &lt;a href=&quot;https://github.com/import&quot; class=&quot;user-mention&quot;&gt;@import&lt;/a&gt; when you want to use the definitions present in the dependency in the current file&lt;/li&gt;
+&lt;li&gt;
+&lt;code&gt;asset-path&lt;/code&gt; and &lt;code&gt;image-path&lt;/code&gt; Sass functions&lt;/li&gt;
+&lt;li&gt;sprites (use compass)&lt;/li&gt;
+&lt;li&gt;
+&lt;code&gt;@font-face&lt;/code&gt; css declaration&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;stylesheet_link_tag&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1&gt;Chapter 4&lt;/h1&gt;
+
+&lt;ul&gt;
+&lt;li&gt;
+&lt;code&gt;javascript_include_tag&lt;/code&gt; (&lt;code&gt;include_js&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;jquery_ujs
+
+&lt;ul&gt;
+&lt;li&gt;
+&lt;code&gt;confirm&lt;/code&gt; parameter to &lt;code&gt;link_to&lt;/code&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;code&gt;remote&lt;/code&gt; parameter to a form (render a js partial)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;code&gt;j&lt;/code&gt;/&lt;code&gt;escape_javascript&lt;/code&gt; method&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1&gt;Chapter 5&lt;/h1&gt;
+
+&lt;ul&gt;
+&lt;li&gt;
+&lt;code&gt;form_for&lt;/code&gt; (&lt;code&gt;multipart&lt;/code&gt; option), &lt;code&gt;text_field&lt;/code&gt;, &lt;code&gt;label&lt;/code&gt;, &lt;code&gt;file_field&lt;/code&gt;, &lt;code&gt;submit&lt;/code&gt;, &lt;code&gt;form_tag&lt;/code&gt;
+&lt;/li&gt;
+&lt;li&gt;html fieldsets&lt;/li&gt;
+&lt;li&gt;tabindex for tabbing order&lt;/li&gt;
+&lt;li&gt;optgroup for grouping options. Pass an array of arrays to &lt;code&gt;select_tag&lt;/code&gt;
+&lt;/li&gt;
+&lt;li&gt;autofocus (html5)&lt;/li&gt;
+&lt;li&gt;Rails automatically wraps div with field_with_errors&lt;/li&gt;
+&lt;li&gt;form builder &lt;code&gt;error_messages&lt;/code&gt; method (&lt;a href=&quot;https://github.com/joelmoss/dynamic_form&quot;&gt;https://github.com/joelmoss/dynamic_form&lt;/a&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;fields_for&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;code&gt;ActionView::Helpers::FormBuilder&lt;/code&gt; You can subclass this to add methods to the form builder object. Ex:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;field_item&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attribute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;block&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;vi&quot;&gt;@template&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;content_tag&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:li&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+    &lt;span class=&quot;vi&quot;&gt;@template&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;concat&lt;/span&gt; &lt;span class=&quot;vi&quot;&gt;@template&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;label&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attribute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;yield&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;p&gt;pass &lt;code&gt;builder&lt;/code&gt; paramter to &lt;code&gt;form_for&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;input tag has new type options from html5&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1&gt;Chapter 6&lt;/h1&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Make a presenter object and an associating helper method. Use a block so that the presenter object is yielded instead of assigning a variable for the presenter.&lt;/li&gt;
+&lt;li&gt;We pass along the presenter instance using the &lt;code&gt;:object&lt;/code&gt; option, which will make sure it&#39;s assigned to a variable with the same name as the partial (in this case, status). This allows the partial to call methods on this object directly&lt;/li&gt;
+&lt;li&gt;We can make presenters render itself. Pass &lt;code&gt;self&lt;/code&gt; to the presenter (self is the template object). Then add a &lt;code&gt;to_s&lt;/code&gt; that renders the partial corresponding to the presenter&lt;/li&gt;
+&lt;li&gt;test that the presenter returns correct values, helper returns presenter and that the &lt;code&gt;to_s&lt;/code&gt; has some correct markup, controller has some correct markup&lt;/li&gt;
+&lt;li&gt;Interesting syntax here:&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;vi&quot;&gt;@columns&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;each_with_object&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({})&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;title&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attribute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;memo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+
+&lt;h1&gt;Chapter 7&lt;/h1&gt;
+
+&lt;ul&gt;
+&lt;li&gt;
+&lt;code&gt;request.format = :mobile&lt;/code&gt; to create mobile version views (register mime type with Rails)&lt;/li&gt;
+&lt;li&gt;Allow users to override the agent query &lt;/li&gt;
+&lt;li&gt;&lt;code&gt;link_to_unless&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;jQuery Mobile&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1&gt;Chapter 8&lt;/h1&gt;
+
+&lt;ul&gt;
+&lt;li&gt;ActionMailer&lt;/li&gt;
+&lt;li&gt;Use ASCII characters for text version of emails and provide a link to view the email&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://github.com/ryanb/letter_opener&quot;&gt;letter_opener gem&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1&gt;Chapter 9&lt;/h1&gt;
+
+&lt;ul&gt;
+&lt;li&gt;A/B testing with &lt;a href=&quot;http://vanity.labnotes.org/&quot;&gt;Vanity&lt;/a&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://github.com/aanand/deadweight&quot;&gt;Deadweight gem&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content>
+ </entry>
  
  <entry>
    <title>GoGaRuCo 2014 Talks</title>

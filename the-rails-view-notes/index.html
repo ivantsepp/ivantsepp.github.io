@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang=en>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>Ivan Tse - The Rails View book notes</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+    <!-- exo font -->
+    <link href='http://fonts.googleapis.com/css?family=Exo+2:800,300' rel='stylesheet' type='text/css'>
+
+    <!-- syntax highlighting CSS -->
+    <link rel="stylesheet" href="/css/syntax.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/main.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/responsive-nav.css">
+    
+    <link rel="canonical" href="http://www.tseivan.com/the-rails-view-notes" />
+    
+
+  </head>
+    <body>
+      <nav class="nav-collapse">
+  <ul>
+    <li><a class=""href="/">Home</a></li>
+
+    
+    
+      
+        
+      
+    
+      
+        
+          <li><a class="" href="/about/">About Me</a></li>
+        
+      
+    
+      
+    
+      
+        
+      
+    
+      
+        
+          <li><a class="" href="/projects/">Projects</a></li>
+        
+      
+    
+
+  </ul>
+</nav>
+
+      <div class="container">
+
+        <header>
+  <h1 class="title"><a href="/">Ivan<strong>Tse</strong></a></h1>
+  <p class="tagline">My journey to better programming and beautiful code</p>
+</header>
+
+        <h1 class="post-title">The Rails View book notes</h1>
+<p class="meta">Nov 13, 2014 | 3 minutes read</p>
+
+<div class="post">
+<p><a href="http://www.amazon.com/The-Rails-View-Maintainable-Experience/dp/1934356875"><img src="http://ecx.images-amazon.com/images/I/41kBEVA%2B7pL.jpg" alt="The Rails View book cover" style="max-width:100%;"></a></p>
+
+<h1>Overall Review</h1>
+
+<p>I actually learned a few new tips and tricks from this book. It was nice to read a book that's mainly focused on the view end of Rails. And I was surprised by the amount of things I learned since I didn't really know there was that much to talk about for views. However, the book did go in a bit of a tangent regarding Sass (I am biased though since I already knew the syntax before reading this book). Overall I would definitely recommend this book! Go check out their <a href="http://www.therailsview.com/">website</a> and the <a href="">rules</a> they have on Rails view layer.</p>
+
+<h1>Chapter 1</h1>
+
+<ul>
+<li>If you don't specify the folder in the partial file name, Rails will look for the file in the current controller’s view directory</li>
+<li>Use <code>yield :sidebar</code>, <code>content_for :sidebar do</code>, and <code>content_for?(:sidebar)</code> to allow content in the view to hook into the layout.</li>
+<li>There is a nifty solution for how to handle navigation in Rails. Put nav in a partial that uses <code>content_for</code>. Then, use a helper method to render this partial with a local variable dictating what the current page is:</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">def</span> <span class="nf">currently_at</span><span class="p">(</span><span class="n">tab</span><span class="p">)</span>
+  <span class="n">render</span> <span class="ss">partial</span><span class="p">:</span> <span class="s1">'layouts/main_nav'</span><span class="p">,</span> <span class="ss">locals</span><span class="p">:</span> <span class="p">{</span><span class="ss">current_tab</span><span class="p">:</span> <span class="n">tab</span><span class="p">}</span>
+<span class="k">end</span></code></pre></div>
+
+<ul>
+<li>
+<code>flash[:notice]</code>, <code>flash[:alert]</code> and the corresponding <code>alert</code>, and <code>notice</code> helper methods.</li>
+<li><a href="https://github.com/bruce/ie_conditional_tag">ie_conditional_tag gem</a></li>
+</ul>
+
+<h1>Chapter 2</h1>
+
+<ul>
+<li>
+<code>raw</code> method (similar to <code>html_safe</code>), <code>link_to</code>, <code>image_tag</code>, <code>number_to_currency</code>, <code>number_to_human_size</code>
+</li>
+<li>Use this to avoid putting law of demeter solution in model and avoid being tied to having <a href="https://github.com/creation" class="user-mention">@creation</a> present (it's a default parameter):</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">def</span> <span class="nf">creation_client_name</span><span class="p">(</span><span class="n">creation</span> <span class="o">=</span> <span class="vi">@creation</span><span class="p">)</span>
+  <span class="n">creation</span><span class="o">.</span><span class="n">project</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">name</span>
+<span class="k">end</span></code></pre></div>
+
+<ul>
+<li>Use this to render collections so that the html for an item is abstracted away as well as the iteration (which should be Rails responsibility):</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="o">&lt;%=</span> <span class="n">render</span> <span class="vi">@creations</span> <span class="o">%&gt;</span></code></pre></div>
+
+<ul>
+<li>Move if/elsif/else clause into separate partials and a helper that renders the correct partial:</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="o">&lt;%=</span> <span class="n">controls_for_creation</span><span class="p">(</span><span class="n">creation</span><span class="p">)</span> <span class="o">%&gt;</span></code></pre></div>
+
+<ul>
+<li>extract long conditions to method_name? helpers. You can even <code>yield</code> in that method so that it can take a block of html</li>
+<li>Use content_tag_for when attributes become complex (use <code>dom_id</code>)</li>
+</ul>
+
+<h1>Chapter 3</h1>
+
+<ul>
+<li>sprockets looks in these folders: <code>app/assets</code> for application code, <code>lib/assets</code> for code used in several projects, <code>vendor/assets</code> for 3rd party code</li>
+<li>directives: <code>require_tree</code> to require a directory recursively and alphabetically, <code>require_self</code> for the file itself</li>
+<li>
+<code>rails runner "y Rails.configuration.assets.paths"</code> to see where sprocket finds the files</li>
+<li>Use require when you just want to shove content together and <a href="https://github.com/import" class="user-mention">@import</a> when you want to use the definitions present in the dependency in the current file</li>
+<li>
+<code>asset-path</code> and <code>image-path</code> Sass functions</li>
+<li>sprites (use compass)</li>
+<li>
+<code>@font-face</code> css declaration</li>
+<li><code>stylesheet_link_tag</code></li>
+</ul>
+
+<h1>Chapter 4</h1>
+
+<ul>
+<li>
+<code>javascript_include_tag</code> (<code>include_js</code>)</li>
+<li>jquery_ujs
+
+<ul>
+<li>
+<code>confirm</code> parameter to <code>link_to</code>
+</li>
+<li>
+<code>remote</code> parameter to a form (render a js partial)</li>
+</ul>
+</li>
+<li>
+<code>j</code>/<code>escape_javascript</code> method</li>
+</ul>
+
+<h1>Chapter 5</h1>
+
+<ul>
+<li>
+<code>form_for</code> (<code>multipart</code> option), <code>text_field</code>, <code>label</code>, <code>file_field</code>, <code>submit</code>, <code>form_tag</code>
+</li>
+<li>html fieldsets</li>
+<li>tabindex for tabbing order</li>
+<li>optgroup for grouping options. Pass an array of arrays to <code>select_tag</code>
+</li>
+<li>autofocus (html5)</li>
+<li>Rails automatically wraps div with field_with_errors</li>
+<li>form builder <code>error_messages</code> method (<a href="https://github.com/joelmoss/dynamic_form">https://github.com/joelmoss/dynamic_form</a>)</li>
+<li><code>fields_for</code></li>
+<li>
+<code>ActionView::Helpers::FormBuilder</code> You can subclass this to add methods to the form builder object. Ex:</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">def</span> <span class="nf">field_item</span><span class="p">(</span><span class="n">attribute</span><span class="p">,</span> <span class="n">text</span> <span class="o">=</span> <span class="kp">nil</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="vi">@template</span><span class="o">.</span><span class="n">content_tag</span> <span class="ss">:li</span> <span class="k">do</span>
+    <span class="vi">@template</span><span class="o">.</span><span class="n">concat</span> <span class="vi">@template</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="n">attribute</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+    <span class="k">yield</span>
+  <span class="k">end</span>
+<span class="k">end</span></code></pre></div>
+
+<p>pass <code>builder</code> paramter to <code>form_for</code></p>
+
+<ul>
+<li>input tag has new type options from html5</li>
+</ul>
+
+<h1>Chapter 6</h1>
+
+<ul>
+<li>Make a presenter object and an associating helper method. Use a block so that the presenter object is yielded instead of assigning a variable for the presenter.</li>
+<li>We pass along the presenter instance using the <code>:object</code> option, which will make sure it's assigned to a variable with the same name as the partial (in this case, status). This allows the partial to call methods on this object directly</li>
+<li>We can make presenters render itself. Pass <code>self</code> to the presenter (self is the template object). Then add a <code>to_s</code> that renders the partial corresponding to the presenter</li>
+<li>test that the presenter returns correct values, helper returns presenter and that the <code>to_s</code> has some correct markup, controller has some correct markup</li>
+<li>Interesting syntax here:</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="vi">@columns</span><span class="o">.</span><span class="n">each_with_object</span><span class="p">({})</span> <span class="k">do</span> <span class="o">|</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">attribute</span><span class="p">),</span> <span class="n">memo</span><span class="o">|</span></code></pre></div>
+
+<h1>Chapter 7</h1>
+
+<ul>
+<li>
+<code>request.format = :mobile</code> to create mobile version views (register mime type with Rails)</li>
+<li>Allow users to override the agent query </li>
+<li><code>link_to_unless</code></li>
+<li>jQuery Mobile</li>
+</ul>
+
+<h1>Chapter 8</h1>
+
+<ul>
+<li>ActionMailer</li>
+<li>Use ASCII characters for text version of emails and provide a link to view the email</li>
+<li><a href="https://github.com/ryanb/letter_opener">letter_opener gem</a></li>
+</ul>
+
+<h1>Chapter 9</h1>
+
+<ul>
+<li>A/B testing with <a href="http://vanity.labnotes.org/">Vanity</a>
+</li>
+<li><a href="https://github.com/aanand/deadweight">Deadweight gem</a></li>
+</ul>
+</div>
+
+<div id="disqus_thread"></div><!-- /#disqus_thread -->
+
+
+        <footer>
+  This site is powered by <a href="http://jekyllrb.com">Jekyll</a> and hosted by <a href="http://pages.github.com/">GitHub Pages</a>. You can view the source <a href="https://github.com/ivantsepp/ivantsepp.github.io">here</a>.
+</footer>
+
+      </div>
+    <!-- Discus Javascript -->
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+    var disqus_shortname = 'ivantseblog'; // required: replace example with your forum shortname
+
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+<script src="/javascript/responsive-nav.min.js"></script>
+<script>
+  var nav = responsiveNav(".nav-collapse", {
+    label: "",
+    insert: "after"
+  });
+</script>
+<script src="/javascript/anchor.js"></script>
+
+    </body>
+</html>
