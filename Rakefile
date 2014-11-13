@@ -16,7 +16,7 @@ task :generate do
 end
 
 desc "Generate and publish blog to gh-pages"
-task :publish => [:generate, :proof] do
+task :publish => [:generate] do
   Dir.mktmpdir do |tmp|
     system "mv _site/* #{tmp}"
     unless %x{git status --short}.empty?
