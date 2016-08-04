@@ -167,6 +167,13 @@ a:hover   { color: #aaa; }
   line-height: 1;
 }
 
+.posts li .description a {
+  font-size: .75rem;
+  display: inline;
+  color: black;
+  text-decoration: underline;
+}
+
 .post-title, .page-title {
   text-align: center;
   color: #193441;

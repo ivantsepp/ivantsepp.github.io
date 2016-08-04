@@ -123,3 +123,6 @@ DEPENDENCIES
   nokogiri (~> 1.6)
   rake (~> 10.3)
   rinku
+
+BUNDLED WITH
+   1.12.5
