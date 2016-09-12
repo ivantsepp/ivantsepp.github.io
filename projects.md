@@ -8,3 +8,6 @@ permalink: /projects/
 ## [{{ project.name }}]({{ project.link }})
 {{ project.description }}
 {% endfor %}
+
+<hr />
+

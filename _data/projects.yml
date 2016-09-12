@@ -9,3 +9,27 @@
 - name: Jekyll::AutolinkEmail
   link: https://github.com/ivantsepp/jekyll-autolink_email
   description: Autolink emails for your Jekyll site
+
+- name: annotate_gem
+  link: https://github.com/ivantsepp/annotate_gem
+  description: Add comments to your Gemfile with each dependency's description
+
+- name: minitest-skip
+  link: https://github.com/ivantsepp/minitest-skip
+  description: Alternative ways to skip tests in Minitest
+
+- name: jekyll-git_metadata
+  link: https://github.com/ivantsepp/jekyll-git_metadata
+  description: Expose Git metadata to Jekyll
+
+- name: codeclimate-scss-lint
+  link: https://github.com/ivantsepp/codeclimate-scss-lint
+  description: Code Climate Engine for SCSS-Lint
+
+- name: browserify-exec
+  link: https://github.com/ivantsepp/browserify-exec
+  description: browserify inliner for shell commands at build time
+
+- name: scss-beautifier
+  link: https://github.com/paperlesspost/scss-beautifier
+  description: Automatically beautify your SCSS
