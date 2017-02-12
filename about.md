@@ -9,7 +9,7 @@ permalink: /about/
 </div>
 
 ## Who am I?
-I am a web developer at [Paperless Post] in New York City. We help you create online and paper stationery that reflects your individual aesthetic. And we are [hiring]!
+I am a web developer at [Etsy] in New York City. Our mission is to reimagine commerce in ways that build a more fulfilling and lasting world. And we are [hiring]!
 
 Currently, my main focus is on [Ruby] and [Rails] but I am also interested in Javascript. Subscribe to my [RSS Feed] to follow my adventures in programming.
 
@@ -27,8 +27,8 @@ Thanks for visiting my website and if you'd like, please leave some [feedback] o
 **Last Modified:** {{site.git.last_commit.commit_date | date_to_string}}
 **Last Commit Message:** {{site.git.last_commit.message}}
 
-[Paperless Post]: http://paperlesspost.com
-[hiring]: http://www.paperlesspost.com/about/jobs
+[Etsy]: https://etsy.com
+[hiring]: https://www.etsy.com/careers
 [Ruby]: http://ruby-lang.org/
 [RSS Feed]: /feed.atom
 [Rails]: http://rubyonrails.org/

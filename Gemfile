@@ -1,5 +1,5 @@
 source 'https://rubygems.org'
-gem 'jekyll', '~> 2.1'
+gem 'jekyll'
 gem 'rake', '~> 10.3'
 gem 'nokogiri', '~> 1.6'
 gem 'jekyll-html-pipeline'
@@ -11,3 +11,4 @@ gem 'jekyll-sitemap'
 gem 'jekyll-git_metadata'
 gem 'jekyll-autolink_email'
 gem 'html-proofer'
+gem "pygments.rb"
