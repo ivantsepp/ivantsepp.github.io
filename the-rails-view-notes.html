@@ -52,6 +52,10 @@
         
       
     
+      
+    
+      
+    
 
   </ul>
 </nav>
@@ -81,9 +85,9 @@
 <li>There is a nifty solution for how to handle navigation in Rails. Put nav in a partial that uses <code>content_for</code>. Then, use a helper method to render this partial with a local variable dictating what the current page is:</li>
 </ul>
 
-<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">def</span> <span class="nf">currently_at</span><span class="p">(</span><span class="n">tab</span><span class="p">)</span>
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span></span><span class="k">def</span> <span class="nf">currently_at</span><span class="p">(</span><span class="n">tab</span><span class="p">)</span>
   <span class="n">render</span> <span class="ss">partial</span><span class="p">:</span> <span class="s1">'layouts/main_nav'</span><span class="p">,</span> <span class="ss">locals</span><span class="p">:</span> <span class="p">{</span><span class="ss">current_tab</span><span class="p">:</span> <span class="n">tab</span><span class="p">}</span>
-<span class="k">end</span></code></pre></div>
+<span class="k">end</span></code></pre></figure>
 
 <ul>
 <li>
@@ -100,21 +104,21 @@
 <li>Use this to avoid putting law of demeter solution in model and avoid being tied to having <a href="https://github.com/creation" class="user-mention">@creation</a> present (it's a default parameter):</li>
 </ul>
 
-<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">def</span> <span class="nf">creation_client_name</span><span class="p">(</span><span class="n">creation</span> <span class="o">=</span> <span class="vi">@creation</span><span class="p">)</span>
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span></span><span class="k">def</span> <span class="nf">creation_client_name</span><span class="p">(</span><span class="n">creation</span> <span class="o">=</span> <span class="vi">@creation</span><span class="p">)</span>
   <span class="n">creation</span><span class="o">.</span><span class="n">project</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">name</span>
-<span class="k">end</span></code></pre></div>
+<span class="k">end</span></code></pre></figure>
 
 <ul>
 <li>Use this to render collections so that the html for an item is abstracted away as well as the iteration (which should be Rails responsibility):</li>
 </ul>
 
-<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="o">&lt;%=</span> <span class="n">render</span> <span class="vi">@creations</span> <span class="o">%&gt;</span></code></pre></div>
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span></span><span class="o">&lt;%=</span> <span class="n">render</span> <span class="vi">@creations</span> <span class="o">%&gt;</span></code></pre></figure>
 
 <ul>
 <li>Move if/elsif/else clause into separate partials and a helper that renders the correct partial:</li>
 </ul>
 
-<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="o">&lt;%=</span> <span class="n">controls_for_creation</span><span class="p">(</span><span class="n">creation</span><span class="p">)</span> <span class="o">%&gt;</span></code></pre></div>
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span></span><span class="o">&lt;%=</span> <span class="n">controls_for_creation</span><span class="p">(</span><span class="n">creation</span><span class="p">)</span> <span class="o">%&gt;</span></code></pre></figure>
 
 <ul>
 <li>extract long conditions to method_name? helpers. You can even <code>yield</code> in that method so that it can take a block of html</li>
@@ -174,12 +178,12 @@
 <code>ActionView::Helpers::FormBuilder</code> You can subclass this to add methods to the form builder object. Ex:</li>
 </ul>
 
-<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">def</span> <span class="nf">field_item</span><span class="p">(</span><span class="n">attribute</span><span class="p">,</span> <span class="n">text</span> <span class="o">=</span> <span class="kp">nil</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span></span><span class="k">def</span> <span class="nf">field_item</span><span class="p">(</span><span class="n">attribute</span><span class="p">,</span> <span class="n">text</span> <span class="o">=</span> <span class="kp">nil</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
   <span class="vi">@template</span><span class="o">.</span><span class="n">content_tag</span> <span class="ss">:li</span> <span class="k">do</span>
     <span class="vi">@template</span><span class="o">.</span><span class="n">concat</span> <span class="vi">@template</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="n">attribute</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
     <span class="k">yield</span>
   <span class="k">end</span>
-<span class="k">end</span></code></pre></div>
+<span class="k">end</span></code></pre></figure>
 
 <p>pass <code>builder</code> paramter to <code>form_for</code></p>
 
@@ -197,7 +201,7 @@
 <li>Interesting syntax here:</li>
 </ul>
 
-<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="vi">@columns</span><span class="o">.</span><span class="n">each_with_object</span><span class="p">({})</span> <span class="k">do</span> <span class="o">|</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">attribute</span><span class="p">),</span> <span class="n">memo</span><span class="o">|</span></code></pre></div>
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span></span><span class="vi">@columns</span><span class="o">.</span><span class="n">each_with_object</span><span class="p">({})</span> <span class="k">do</span> <span class="o">|</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">attribute</span><span class="p">),</span> <span class="n">memo</span><span class="o">|</span></code></pre></figure>
 
 <h1>Chapter 7</h1>
 

@@ -52,6 +52,10 @@
         
       
     
+      
+    
+      
+    
 
   </ul>
 </nav>
@@ -75,7 +79,7 @@
 
 <p>In addition, you can checkout the pull request locally without needing to add a remote refspec. This is extremely helpful when there is a stale pull request that conflicts with master and the remote repository has been deleted. You would simply <a href="https://help.github.com/articles/checking-out-pull-requests-locally#modifying-an-inactive-pull-request-locally">modify it locally</a> before merging.</p>
 
-<p>One of the ways I use this reference to improve my workflow is that I can do a comparison across pull requests on a project. Sometimes, a massive project can be broken into two pull requests where one includes the other. That is, the successive pull request depends on the work done in the previous one. I would code review the first one and give it a <a href="https://assets.github.com/images/icons/emoji/%2B1.png" target="_blank"><img class="emoji" title=":+1:" alt=":+1:" src="https://assets.github.com/images/icons/emoji/%2B1.png" height="20" width="20" align="absmiddle" style="max-width:100%;"></a>. But when, I review the second pull request, the diff on GitHub includes changes from <strong>both</strong> pull requests. This is not ideal because I want to see changes that were made specifically for the second pull request; the commits that I haven't seen yet. With head references, I can make this view by constructing a GitHub compare link between those two references. Here is a quick demonstration of this: <a href="https://github.com/ivantsepp/ivantsepp.github.io/pull/8">#8</a> works on top of <a href="https://github.com/ivantsepp/ivantsepp.github.io/pull/7">#7</a> but the <a href="https://github.com/ivantsepp/ivantsepp.github.io/compare/pull%2F7%2Fhead...pull%2F8%2Fhead?w=1">compare link</a> only shows the commits made in the second pull request.</p>
+<p>One of the ways I use this reference to improve my workflow is that I can do a comparison across pull requests on a project. Sometimes, a massive project can be broken into two pull requests where one includes the other. That is, the successive pull request depends on the work done in the previous one. I would code review the first one and give it a <a href="https://assets.github.com/images/icons/emoji/unicode/1f44d.png" target="_blank"><img class="emoji" title=":+1:" alt=":+1:" src="https://assets.github.com/images/icons/emoji/unicode/1f44d.png" height="20" width="20" align="absmiddle" style="max-width:100%;"></a>. But when, I review the second pull request, the diff on GitHub includes changes from <strong>both</strong> pull requests. This is not ideal because I want to see changes that were made specifically for the second pull request; the commits that I haven't seen yet. With head references, I can make this view by constructing a GitHub compare link between those two references. Here is a quick demonstration of this: <a href="https://github.com/ivantsepp/ivantsepp.github.io/pull/8">#8</a> works on top of <a href="https://github.com/ivantsepp/ivantsepp.github.io/pull/7">#7</a> but the <a href="https://github.com/ivantsepp/ivantsepp.github.io/compare/pull%2F7%2Fhead...pull%2F8%2Fhead?w=1">compare link</a> only shows the commits made in the second pull request.</p>
 
 <p>As a side note, just as you can hide whitespace diff with <code>git diff -w</code> or <code>git diff --ignore-all-space</code> on the command line, you can add <code>?w=1</code> to the URL to get the same effect with the GitHub view. There are some other <a href="https://github.com/blog/967-github-secrets">useful GitHub secrets</a> you should check out.</p>
 
