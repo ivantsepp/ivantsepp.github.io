@@ -12,3 +12,4 @@ gem 'jekyll-git_metadata'
 gem 'jekyll-autolink_email'
 gem 'html-proofer'
 gem "pygments.rb"
+gem "html-proofer"

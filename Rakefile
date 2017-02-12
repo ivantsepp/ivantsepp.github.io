@@ -3,7 +3,7 @@ require 'rake'
 require 'jekyll'
 require 'tmpdir'
 require 'shellwords'
-require 'html/proofer'
+require 'html-proofer'
 
 # http://blog.nitrous.io/2013/08/30/using-jekyll-plugins-on-github-pages.html
 
@@ -40,7 +40,7 @@ end
 
 desc "HTML Proof the output"
 task :proof => [:generate] do
-  HTML::Proofer.new("./_site").run
+  HTMLProofer.check_directory("./_site").run
 end
 
 task :default => :publish
