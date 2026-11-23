@@ -5,10 +5,12 @@ title: Home
 
 <ul class="posts">
   {% for post in site.posts %}
+    {% unless post.other_blog %}
     <li>
       <a href="{{ post.url }}.html">{{ post.title }}</a>
       {% if post.description %}<span class="description">{{ post.description }}</span>{% endif %}
     </li>
+    {% endunless %}
   {% endfor %}
 </ul>
 
@@ -18,10 +20,14 @@ title: Home
     <a href="https://www.paperlesspost.com/blog/teams/how-i-tracked-down-a-flaky-test/">How I Tracked Down a Flaky Test</a>
     <span class="description">My journey of fixing a flaky test, this was featured in a <a href="http://rubyweekly.com/issues/308">Ruby Weekly Issue</a>!</span>
   </li>
-  <li>
-    <a href="https://www.paperlesspost.com/blog/teams/skipping-tests-minitest/">Skipping tests in Minitest</a>
-    <span class="description">There are many ways to skip tests in Minitest but be careful of the default way</span>
-  </li>
+  {% for post in site.posts %}
+    {% if post.other_blog %}
+    <li>
+      <a href="{{ post.url }}.html">{{ post.title }}</a>
+      {% if post.description %}<span class="description">{{ post.description }}</span>{% endif %}
+    </li>
+    {% endif %}
+  {% endfor %}
 </ul>
 
 <h2>Notable contributions</h2>
