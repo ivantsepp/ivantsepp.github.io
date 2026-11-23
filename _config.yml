@@ -2,29 +2,20 @@ url: http://www.tseivan.com
 name: Ivan Tse
 email: ivan.tse1@gmail.com
 tagline: My journey to better programming and beautiful code
-highlighter: pygments
+highlighter: rouge
 permalink: :title
 timezone: America/New_York
 excerpt_separator: ""
 disqus_shortname: ivantseblog
-markdown: HTMLPipeline
-html_pipeline:
-  filters:
-    - "markdownfilter"
-    - "emojifilter"
-    - "mentionfilter"
-    - "autolinkfilter"
-    - "imagemaxwidthfilter"
-  context:
-    gfm: true
-    asset_root: "https://assets.github.com/images/icons/"
-    base_url: "https://github.com"
-gems:
-  - jekyll-html-pipeline
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+plugins:
   - jekyll-redirect-from
   - jekyll-sitemap
-  - jekyll-git_metadata
-  - jekyll-autolink_email
+  - jekyll-mentions
+  - jemoji
 exclude:
   - Gemfile
   - Gemfile.lock
