@@ -16,10 +16,6 @@ title: Home
 
 <h2>Posts that I've written on other blogs</h2>
 <ul class="posts">
-  <li>
-    <a href="https://www.paperlesspost.com/blog/teams/how-i-tracked-down-a-flaky-test/">How I Tracked Down a Flaky Test</a>
-    <span class="description">My journey of fixing a flaky test, this was featured in a <a href="http://rubyweekly.com/issues/308">Ruby Weekly Issue</a>!</span>
-  </li>
   {% for post in site.posts %}
     {% if post.other_blog %}
     <li>
