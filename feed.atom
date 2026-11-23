@@ -4,7 +4,7 @@
  <title></title>
  <link href="http://www.tseivan.com/atom.xml" rel="self"/>
  <link href="http://www.tseivan.com/"/>
- <updated>2018-08-10T10:57:10-04:00</updated>
+ <updated>2026-11-22T23:06:08-05:00</updated>
  <id>http://www.tseivan.com</id>
  <author>
    <name>Ivan Tse</name>
@@ -13,167 +13,496 @@
 
  
  <entry>
+   <title>How I Tracked Down a Flaky Test</title>
+   <link href="http://www.tseivan.com/how-i-tracked-down-a-flaky-test"/>
+   <updated>2016-07-27T00:00:00-04:00</updated>
+   <id>http://www.tseivan.com/how-i-tracked-down-a-flaky-test</id>
+   <content type="html">&lt;p&gt;&lt;em&gt;This post was originally published on the &lt;a href=&quot;https://web.archive.org/web/20190113173735/https://www.paperlesspost.com/blog/teams/how-i-tracked-down-a-flaky-test/&quot;&gt;Paperless Post engineering blog&lt;/a&gt; (via the Wayback Machine).&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;TLDR: I had trouble figuring out the root cause of a flaky test. I made several theories and used lots of logging to debug the issue. It turns out that this flake only occurs when 4 test files run in a specific order. The issue was that global state was leaking through each test run from improper use of Timecop.&lt;/p&gt;
+
+&lt;h2 id=&quot;what-is-a-flaky-test-and-why-do-we-care&quot;&gt;What Is A Flaky Test And Why Do We Care?&lt;/h2&gt;
+
+&lt;p&gt;Testing is an important aspect of software development. Tests are used to prevent regressions and allow developers to refactor code with confidence. It’s particularly helpful to run these tests continuously, especially if the tests take more than a couple of minutes to run. At Paperless Post, our unit test suite takes about 5 minutes to complete so we run them on our continuous integration server: Jenkins, which runs these builds on every commit that gets pushed.&lt;/p&gt;
+
+&lt;p&gt;We noticed that some builds initially fail, but pass when they are rebuilt. And when we run the exact same test locally, it always passes. This is not a good sign; these are the symptoms of flaky tests. Unlike many bugs, flaky tests are really hard to fix because they’re so hard to reproduce.&lt;/p&gt;
+
+&lt;p&gt;One option to address this is to simply ignore these failures, but this is not a good practice. Developers will start lose trust in the tests and will begin to ignore failed builds without looking at the specific failures. Even if all the developers are disciplined enough to look at each failed build, they have to look at the build report to determine whether or not the build failed as a result of a real bug or a flake. This behavior is described in the &lt;a href=&quot;https://en.wikipedia.org/wiki/Broken_windows_theory&quot;&gt;broken windows theory&lt;/a&gt;. Sooner or later, our test suite will accumulate more and more flakes to a point where the tests are not useful or beneficial anymore. So, I decided to jump in and try to determine the root cause of this issue. The following is a recount of my journey.&lt;/p&gt;
+
+&lt;h2 id=&quot;reconnaissance&quot;&gt;Reconnaissance&lt;/h2&gt;
+
+&lt;p&gt;First, let’s take a look at the test failure. In this test, we are trying to render a view by doing a GET request. More specifically, we are rendering the cart modal. This is the failure:&lt;/p&gt;
+
+&lt;div class=&quot;language-text highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;1) Error:
+CartsControllerTest#renders_cart_modal
+ActionView::TemplateError: Called id for nil, which would mistakenly be 4 -- if you really wanted the id of nil, use object_id
+   On line #50 of app/views/carts/_cart_modal.html.haml
+
+   48:           - if current_cart.has_print_orders?
+   49:             - current_cart.print_orders.each do |print_order|
+   50:               = print_order.related_event.id.to_param
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The exception is coming from the fact that &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;print_order.related_event&lt;/code&gt; is returning &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;nil&lt;/code&gt;. We want to understand why it’s returning a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;nil&lt;/code&gt; value but we don’t have the luxury of inspecting the failed test run interactively. Instead, we have to do detective work. We have to gather some clues about the state of the process at the time of the failure. Let’s start by stating the facts. What can we say is true about the system? In the snippet, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;current_cart.has_print_orders?&lt;/code&gt; has to return &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;true&lt;/code&gt; in order for the test to enter that conditional. So I took a look at the method:&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Cart&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ActiveRecord&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Base&lt;/span&gt;
+
+  &lt;span class=&quot;n&quot;&gt;has_many&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:orders&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;proc&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;where&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:removed&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;print_orders&lt;/span&gt;
+    &lt;span class=&quot;vi&quot;&gt;@print_orders&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;orders&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;where&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;print: &lt;/span&gt;&lt;span class=&quot;kp&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;order&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&apos;orders.created_at DESC&apos;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;to_a&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;In that method, I learned that carts have an association of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;has_many :orders&lt;/code&gt;, and this method was scoping those orders to print orders as opposed to non-print orders. We also know that with a print order, we can find its related event. In addition to learning about the code, you can also inspect the environment in a successful test run to see what &lt;em&gt;should&lt;/em&gt; be happening. I put a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;binding.pry&lt;/code&gt; statement in that test and saw that the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;current_cart&lt;/code&gt; has several &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;print_orders&lt;/code&gt;, each with a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;related_event&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;making-an-hypothesis-indeterministic-ordering&quot;&gt;Making An Hypothesis: Indeterministic Ordering&lt;/h2&gt;
+
+&lt;p&gt;After gathering some clues, you can make some hypotheses. Did the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;related_event&lt;/code&gt; get deleted in another test? No, that shouldn’t be possible because we are using transactional fixtures. This means that each test is wrapped in a transaction so that any changes performed in a test are rolled back. In the test we’re looking at, there aren’t any &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;destroy&lt;/code&gt; calls. So even if another test deleted that event, it should be rolled back by the time this test started. Did an invalid print order get created and associated with the cart? Again, it shouldn’t be possible for our test because of transactions. Is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;current_cart&lt;/code&gt; returning the right cart? Hm, that is an interesting idea. Let’s take a closer look at the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;current_cart&lt;/code&gt; helper method.&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;current_cart&lt;/span&gt;
+  &lt;span class=&quot;vi&quot;&gt;@current_cart&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;current_account&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;current_cart&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;It looks like it’s grabbing the logged-in account and calling &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;#current_cart&lt;/code&gt; on that account.&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;current_cart&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;carts&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;where&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:complete&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;order&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;updated_at DESC&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;first&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Aha! What if the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;current_account&lt;/code&gt; has multiple carts? The query that’s generated above is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;SELECT * FROM &quot;carts&quot; WHERE (&quot;carts&quot;.account_id = &amp;lt;id&amp;gt;) AND (&quot;carts&quot;.&quot;complete&quot; = &apos;f&apos;) ORDER BY updated_at DESC LIMIT 1&lt;/code&gt;. Could it be returning the wrong cart? This reminded me of a recent issue that one of our engineers, Becca, observed. She saw that some records were missing and others were duplicated in a paginated API json response. Both these issues are similar and sounds like it could be an indeterministic ordering issue. But what is indeterministic ordering?&lt;/p&gt;
+
+&lt;p&gt;The fundamental reason for indeterministic ordering is because of how relational databases are implemented and how the SQL language is specified. The &lt;a href=&quot;https://www.postgresql.org/docs/8.3/static/queries-order.html&quot;&gt;Postgres documentation&lt;/a&gt; says:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;After a query has produced an output table (after the select list has been processed) it can optionally be sorted. If sorting is not chosen, the rows will be returned in an unspecified order. The actual order in that case will depend on the scan and join plan types and the order on disk, but it must not be relied on. A particular output ordering can only be guaranteed if the sort step is explicitly chosen.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Without an &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ORDER BY&lt;/code&gt; clause, the records can be returned in any way that’s convenient to the database. In addition, if you specify a column for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ORDER BY&lt;/code&gt; where several records have the same value, those records can be returned in any fashion.&lt;/p&gt;
+
+&lt;p&gt;This is a common issue and is an easy trap to fall into. Rails even changed their first and last &lt;a href=&quot;https://github.com/rails/rails/pull/5153&quot;&gt;ActiveRecord implementations&lt;/a&gt; in Rails 4 to address this behavior. One solution is to use a unique column to order by. This &lt;a href=&quot;https://thomascannon.me/posts/pagination-perils&quot;&gt;article&lt;/a&gt; goes into more detail about this issue and how to fix it.&lt;/p&gt;
+
+&lt;p&gt;Let’s take a look at the carts in our test environment. Lo and behold, the fixtures file:&lt;/p&gt;
+
+&lt;div class=&quot;language-yaml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;na&quot;&gt;cart_1&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;account&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;account_1&lt;/span&gt;
+
+&lt;span class=&quot;na&quot;&gt;invalid_cart&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;account&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;account_1&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;account_1&lt;/code&gt; is the logged in user for our test and it has several carts. Since we didn’t specify any timestamps for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;created_at&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;updated_at&lt;/code&gt;, they all have the same &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;created_at&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;updated_at&lt;/code&gt; timestamps.&lt;/p&gt;
+
+&lt;p&gt;So, our theory is that the query in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Account#current_cart&lt;/code&gt; is indeterministic and that any of these carts could be returned. We believe that &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;carts(:invalid_cart)&lt;/code&gt; is being returned in some cases and it has a print order that does not have a related event. This explains the error and the stacktrace we were seeing. To fix this, we could update our query by adding an “order by” with a more specific clause such as &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;order(&quot;updated_at DESC, id DESC&quot;)&lt;/code&gt;. Or we could update the fixture file so that the carts have different timestamps.&lt;/p&gt;
+
+&lt;p&gt;So I decided to fix it with the latter approach.&lt;/p&gt;
+
+&lt;div class=&quot;language-yaml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;na&quot;&gt;cart_1&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;account&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;account_1&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;updated_at&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;lt;%= 5.minutes.from_now %&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;cart_1&lt;/code&gt; should be selected from now on since it should have the a later &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;updated_at&lt;/code&gt; timestamp. An interesting takeaway from this discovery is that we might have other queries with indeterministic ordering. To identify those queries, we could patch ActiveRecord such that it appended a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ORDER BY random()&lt;/code&gt; to every query and then seeing if other tests fail. I did just that and the results were interesting, but I’ll save that for another post.&lt;/p&gt;
+
+&lt;p&gt;I merged my changes believing that I have fixed the flake. But surprisingly, the flake is still happening! The same test and the same stacktrace were showing up in failed builds. Seems like my fix didn’t address the issue so it’s back to the drawing board.&lt;/p&gt;
+
+&lt;h2 id=&quot;put-logging-statements-everywhere&quot;&gt;Put Logging Statements Everywhere&lt;/h2&gt;
+
+&lt;p&gt;This time, I wanted to learn more about the environment of the failing test. I used &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;puts&lt;/code&gt; debugging to print out all possible state such as local variables and their associations if they were ActiveRecord models.&lt;/p&gt;
+
+&lt;p&gt;Is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;current_account&lt;/code&gt; returning the right account? Yes. Is &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;current_cart&lt;/code&gt; returning the correct cart? No. Let’s print out the account’s carts at the beginning of the failing test and right before the exception.&lt;/p&gt;
+
+&lt;div class=&quot;language-text highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# At the start of the failing test
+[
+ #&amp;lt;Cart id: 1, created_at: &quot;2016-06-15 03:44:39&quot;, updated_at: &quot;2016-06-15 03:49:38&quot; .... &amp;gt;,
+ #&amp;lt;Cart id: 2, created_at: &quot;2016-06-15 03:44:39&quot;, updated_at: &quot;2016-06-15 03:44:39&quot; .... &amp;gt;
+]
+
+# Right before the exception
+[
+ #&amp;lt;Cart id: 2, created_at: &quot;2016-06-15 03:44:39&quot;, updated_at: &quot;2016-06-15 03:44:39&quot; .... &amp;gt;,
+ #&amp;lt;Cart id: 1, created_at: &quot;2016-06-15 03:44:39&quot;, updated_at: &quot;2016-06-15 03:40:23&quot; .... &amp;gt;
+]
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;At the start of the failing test, we can see the target cart (with id 1) and that it correctly contains an &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;updated_at&lt;/code&gt; timestamp that is 5 minutes after the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;created_at&lt;/code&gt; timestamp. However, it looks like the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;updated_at&lt;/code&gt; timestamp of that cart changed somewhere in the failing test.&lt;/p&gt;
+
+&lt;h2 id=&quot;further-investigation-spoiler-alert-timecop&quot;&gt;Further Investigation (Spoiler Alert: Timecop)&lt;/h2&gt;
+
+&lt;h2 id=&quot;jenkinshost-problems&quot;&gt;Jenkins/Host Problems&lt;/h2&gt;
+
+&lt;p&gt;After I took a quick look at the controller code, I realized that we have some logic to set the default shipping option of an order if it doesn’t already exist:&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;CartsController&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ApplicationController&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;cart_modal&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;current_cart&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;shippable_orders&lt;/span&gt;
+      &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;select&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;o&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;o&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;valid_shipping_option?&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+      &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;each&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:set_default_shipping_option&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;This in turn touched the cart’s timestamp because of the association:&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Order&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ActiveRecord&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Base&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;belongs_to&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:cart&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;touch: &lt;/span&gt;&lt;span class=&quot;kp&quot;&gt;true&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;So that explains why the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;updated_at&lt;/code&gt; timestamp changed. But what’s &lt;strong&gt;really interesting&lt;/strong&gt; is that the timestamp used for &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;updated_at&lt;/code&gt; is before the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;created_at&lt;/code&gt; timestamp. How did &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Time.now&lt;/code&gt; somehow end up going back in time?&lt;/p&gt;
+
+&lt;p&gt;I was extremely baffled from this behavior. My next hypothesis was that there is some weird time calculation going on in that Jenkins node. We run our tests on a single server so perhaps this is an OS level issue. I spun up a different Jenkins node to build our tests to see if flakes were only happening on that server.&lt;/p&gt;
+
+&lt;h2 id=&quot;timecop&quot;&gt;Timecop&lt;/h2&gt;
+
+&lt;p&gt;Nope. The flakes still showed up. Our staff operations engineer, Dan Diego, had an interesting insight and suggested that perhaps this flake is related to &lt;a href=&quot;https://github.com/travisjeffery/timecop&quot;&gt;Timecop&lt;/a&gt;. Timecop is a library that allows you to travel in time by essentially mocking what &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Time.now&lt;/code&gt; would return. I added more debugging statements to see if Timecop was in play. Timecop mocks the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Time.now&lt;/code&gt; method by aliasing the original &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Time.now&lt;/code&gt; to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Time.now_without_mock_time&lt;/code&gt; and overriding &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Time.now&lt;/code&gt; with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Time.now_with_mock_time&lt;/code&gt;. Here’s the &lt;a href=&quot;https://github.com/travisjeffery/timecop/blob/314882f24065190c446d8d1eb368f6985885dd28/lib/timecop/time_extensions.rb#L6-L17&quot;&gt;implementation&lt;/a&gt;. With that in mind, I wanted to see if time was mocked:&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nb&quot;&gt;puts&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Time&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;now_without_mock_time&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;inspect&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Hm, nothing interesting came out of that &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;puts&lt;/code&gt; statement. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Time&lt;/code&gt; wasn’t being mocked when the flaky test is running. I then decided to record the time at the start of the test build in addition to the time when the flaky test is executed. Aha! The timestamps matched the weird &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;updated_at&lt;/code&gt; timestamp. So actually, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Time.now&lt;/code&gt; didn’t end up going back in time. Instead, the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;created_at&lt;/code&gt; timestamps for the carts are in the future! Somehow, those fixtures were created with a future &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Time.now&lt;/code&gt; instance.&lt;/p&gt;
+
+&lt;p&gt;I again was baffled from this finding. Fixtures are created at the start of the test build (the &lt;a href=&quot;https://github.com/rails/rails/blob/d0a5f878d32a4b95f5e866d3b5612acd4b7d16c7/activerecord/lib/active_record/fixtures.rb&quot;&gt;entire fixtures implementation&lt;/a&gt; is actually pretty succinct and readable). And the time at the beginning of the test suite is correct. I couldn’t think of a reason for why fixtures would be created with an incorrect timestamp.&lt;/p&gt;
+
+&lt;h2 id=&quot;transactional-fixtures&quot;&gt;Transactional fixtures&lt;/h2&gt;
+
+&lt;p&gt;After mulling this over for a while, I had another insight. We have some tests that turn off the transactional behavior of tests. This is because we needed to test functionality in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;after_commit&lt;/code&gt; callbacks. (This is &lt;a href=&quot;https://github.com/rails/rails/pull/18458&quot;&gt;fixed&lt;/a&gt; in Rails 5, you can test those callbacks while still having the transactional fixture behavior). Would setting &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;self.use_transactional_fixtures = false&lt;/code&gt; be forcing fixtures to be reloaded? Yes, in fact that’s true! In the &lt;a href=&quot;https://github.com/rails/rails/blob/d0a5f878d32a4b95f5e866d3b5612acd4b7d16c7/activerecord/lib/active_record/fixtures.rb#L984-L989&quot;&gt;implementation&lt;/a&gt;, Rails will remove existing records and re-insert them for each test case that have transactional fixtures off.&lt;/p&gt;
+
+&lt;p&gt;This is exciting because now we can explain why the cart would have a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;created_at&lt;/code&gt; timestamp in the future. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Time.now&lt;/code&gt; must’ve been mocked when those tests are running. Looking at the implementation of Timecop, if we traveled in time, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Time.now&lt;/code&gt; will stay mocked until we execute &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Timecop.return&lt;/code&gt; to unmock &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Time.now&lt;/code&gt;. In our codebase, for the most part we were following best practice by calling &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Timecop.return&lt;/code&gt; whenever we traveled in time. But there were cases where we didn’t do that.&lt;/p&gt;
+
+&lt;p&gt;So if a test traveled in time via &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Timecop.travel(5.minutes.from_now)&lt;/code&gt; and didn’t call &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Timecop.return&lt;/code&gt;, then our test runner would have its time mocked and it would be in the “future”. Afterwards, if the test runner executes a test that calls &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Timecop.return&lt;/code&gt;, then time would be restored to the real time.&lt;/p&gt;
+
+&lt;p&gt;Wow. So our hypothesis is that first we need to run the test that puts the test runner in the future, then run a test that resets fixtures, then run a test that returns the runner to the correct time, and then finally, run the flaky cart test. I ran these exact tests locally and once they ran in the order I described above, I finally was able to reproduce the error. This validates our hypothesis!&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion-and-the-fix&quot;&gt;Conclusion And The Fix&lt;/h2&gt;
+
+&lt;p&gt;In the end, this flaky test issue boils down to misusing Timecop. We had a few lingering Timecop uses where we didn’t unmock time at the end of the test. The fix was simple enough: make sure we return to the correct time at the end of each test. As an interesting side note, ironically, I was the developer who wrote those tests that traveled in time. I guess that’s karma since I ended up spending time debugging and fixing these flakes.&lt;/p&gt;
+
+&lt;p&gt;The takeaway from this journey is to make sure you return time to its original time at the end of each test. In fact, I would recommend using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Timecop.return&lt;/code&gt; as a global teardown block. Let’s take a quick look at its implementation:&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;# Reverts back to system&apos;s Time.now, Date.today and DateTime.now (if it exists) permamently when&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# no block argument is given, or temporarily reverts back to the system&apos;s time temporarily for&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# the given block.&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;block&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;block_given?&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;instance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;send&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:return&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;block&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;instance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;send&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:unmock!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;kp&quot;&gt;nil&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;unmock!&lt;/span&gt;
+  &lt;span class=&quot;vi&quot;&gt;@baseline&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;nil&lt;/span&gt;
+  &lt;span class=&quot;vi&quot;&gt;@_stack&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;It looks like Timecop resets some internal values to make sure that time is no longer mocked. The implementation doesn’t seem too costly with regards to performance and it seems that by doing it globally it would prevent future developers from making the same mistake that I did. And it makes sense too: after every test, you don’t want time to be mocked so we can go ahead and unmock time.&lt;/p&gt;
+
+&lt;p&gt;In conclusion, tests are an important aspect of software development and we as developers should make sure the tests are not flaky. And if we see flaky tests, we should spend the appropriate time debugging and fixing the issue. In our case, we saw that Timecop was acting like a global state that’s shared across tests. We misused Timecop and its state leaked into other tests causing unexpected behavior. Make sure to reset global states between tests to avoid flaky tests.&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;Thanks to Brittany Wald, Jacy Clare, Mavreen Smiel, and David Cosgrove for reading and providing feedback to this blog post.&lt;/em&gt;&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
+   <title>Skipping tests in Minitest</title>
+   <link href="http://www.tseivan.com/skipping-tests-minitest"/>
+   <updated>2016-02-02T00:00:00-05:00</updated>
+   <id>http://www.tseivan.com/skipping-tests-minitest</id>
+   <content type="html">&lt;p&gt;&lt;em&gt;This post was originally published on the &lt;a href=&quot;https://web.archive.org/web/20190113200950/https://www.paperlesspost.com/blog/teams/skipping-tests-minitest/&quot;&gt;Paperless Post engineering blog&lt;/a&gt; (via the Wayback Machine).&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;We’ve all been there: Maybe you have a flaky test that you don’t have the time to fix right now, or you want to start writing tests for some future work that you aren’t ready to implement yet. At Paperless Post, sometimes we want to skip flaky acceptance tests until someone has a chance to look at them. This keeps our builds green and maintains confidence in our tests. I did a &lt;a href=&quot;https://github.com/search?o=desc&amp;amp;q=skip+minitest+extension%3Arb+path%3Atest+size%3A%3E5000+fork%3Afalse&amp;amp;ref=searchresults&amp;amp;s=indexed&amp;amp;type=Code&amp;amp;utf8=%E2%9C%93&quot;&gt;code search on Github&lt;/a&gt; and found we’re not the only ones doing this. All of this goes to show that there are a variety of valid cases for skipping tests. However, the current implementation of skipping tests can be costly.&lt;/p&gt;
+
+&lt;p&gt;Skipping tests in Minitest is simple; use the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;skip&lt;/code&gt;  method to signal to Minitest that the test method should be skipped when running a test suite. Here’s an example:&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;minitest/autorun&quot;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;MyTest&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Minitest&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Test&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;test_one&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;skip&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Dependency has changed and this test needs to be fixed&quot;&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# ...&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Let’s take a quick look at how &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;skip&lt;/code&gt;  is implemented by diving into Minitest source code. First, let’s look at the method definition of skip.&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;##&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# Skips the current run. If run in verbose-mode, the skipped run&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# gets listed at the end of the run but doesn&apos;t cause a failure&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# exit code.&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;skip&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;msg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bt&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;caller&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;msg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Skipped, no message given&quot;&lt;/span&gt;
+  &lt;span class=&quot;vi&quot;&gt;@skip&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;true&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;raise&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Minitest&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Skip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;msg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bt&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;This is the implementation of &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;skip&lt;/code&gt; and all it does is raise a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Minitest::Skip&lt;/code&gt; exception. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Minitest::Skip&lt;/code&gt; inherits from &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Minitest::Assertion&lt;/code&gt; which inherits from &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Exception&lt;/code&gt;. Minitest captures abnormal behavior such as failing assertions and unexpected errors from your test code, and uses exceptions to communicate to the test runner. When Minitest runs the test, it catches the exception and uses the exception to determine the state of the test. Below is a snippet of the relevant code that handles the exception:&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;capture_exceptions&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# :nodoc:&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;yield&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;rescue&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;PASSTHROUGH_EXCEPTIONS&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;raise&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;rescue&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Assertion&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;failures&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;rescue&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Exception&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;failures&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;UnexpectedError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;##&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# Was this run skipped?&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;skipped?&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;failure&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Skip&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;===&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;failure&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Minitest catches the exception and adds it to a list of failures, but then it has to distinguish between an actual failure or a skip. It does this by using &lt;a href=&quot;http://ruby-doc.org/core-2.2.0/Module.html#method-i-3D-3D-3D&quot;&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Module#===&lt;/code&gt;&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;The takeaway from reading the source code is that Minitest raises exceptions to communicate skips, which means that a test is not skipped until &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;skip&lt;/code&gt; is called. &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;skip&lt;/code&gt; halts execution at the current line and only then is the test is marked as skipped. The implication of this is that any code executed before &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;skip&lt;/code&gt;, such as setup methods, is essentially wasted time.&lt;/p&gt;
+
+&lt;p&gt;Here’s a more concrete example of this:&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;minitest/autorun&quot;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;MyTest&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Minitest&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Test&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;setup&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;sleep&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;test_one&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;skip&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;This is run and executes the setup block. This test takes 2 seconds to run&quot;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;This can be especially costly if you use skip in an acceptance test, which might have a long and complicated setup. This is something we’ve run into at Paperless Post, since our acceptance tests set up by opening a browser and navigating to the homepage.&lt;/p&gt;
+
+&lt;p&gt;So what can we do to improve this? A straightforward answer would be to delete the test or to comment it out. We could even create GitHub issues if we were concerned that no one would come back to the test and fix it. Even so, this is not an ideal solution since we do not get the Minitest output that shows the number of skipped tests in need of attention.&lt;/p&gt;
+
+&lt;p&gt;Deleting or commenting out a test also doesn’t work for cases where &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;skip&lt;/code&gt; is used conditionally depending on some runtime state.&lt;/p&gt;
+
+&lt;p&gt;For example:&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;test_something&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;skip&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;message&quot;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;RUBY_ENGINE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&apos;rbx&apos;&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;# ...&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;One solution would be to conditionally define the method.&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;RUBY_ENGINE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&apos;rbx&apos;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;test_something&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# ...&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;A more elegant way of doing the above is (&lt;a href=&quot;https://twitter.com/the_zenspider/status/694993398046916608&quot;&gt;credit goes to Ryan Davis&lt;/a&gt;)&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;test_something&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;# ...&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;unless&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;rubinius?&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Still, there are other cases where you can’t avoid using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;skip&lt;/code&gt;. Here’s an example from &lt;a href=&quot;https://github.com/Shopify/active_shipping/blob/37b8f4a64364ebc0eaeacc386a8c36ce6bee0638/test/remote/ups_test.rb&quot;&gt;active_shipping&lt;/a&gt;:&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;test_obtain_shipping_label_with_bill_third_party&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;begin&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;bill_third_party_credentials&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;credentials&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:ups_third_party_billing&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;rescue&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;NoCredentialsFound&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;skip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;message&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Although there are alternatives to using the costly skip – including deleting, commenting out, or renaming the test – these are all still not ideal because they cannot use Minitest reporting facilities to tell us which tests have been skipped.&lt;/p&gt;
+
+&lt;p&gt;I’ve created a plugin to help solve that, which allows you to skip methods by renaming them to begin with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;skip_&lt;/code&gt;. This plugin patches Minitest so that it can find methods that begin with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;skip_&lt;/code&gt; and records them as skipped tests without running any setup code. &lt;a href=&quot;https://github.com/ivantsepp/minitest-skip&quot;&gt;Check out the code here!&lt;/a&gt; Here’s how it would look on a previous example:&lt;/p&gt;
+
+&lt;div class=&quot;language-ruby highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;minitest/autorun&quot;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;MyTest&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Minitest&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Test&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;setup&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;sleep&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;skip_test_one&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# the setup block is not executed&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# Output correctly shows that this test was skipped&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# Run options: --seed 14032&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;#&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# # Running:&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;#&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# S&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;#&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# Finished in 0.001937s, 516.2940 runs/s, 0.0000 assertions/s.&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;#&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# 1 runs, 0 assertions, 0 failures, 0 errors, 1 skips&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;#&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# You have skipped tests. Run with --verbose for details.&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;In conclusion, we’ve seen that skip is necessary and useful in some cases but the way that it is currently implemented can be costly, particularly if there’s expensive setup logic. One solution is to remove skipped tests or conditionally define them, but then you lose helpful Minitest output. An even better solution is to use &lt;a href=&quot;https://github.com/ivantsepp/minitest-skip&quot;&gt;this plugin&lt;/a&gt; that avoids costly setup but still provides helpful test output. Also, if you have time, try reading Minitest’s source code. It’s very readable and well written!&lt;/p&gt;
+
+&lt;p&gt;Thanks to &lt;a href=&quot;https://twitter.com/becdot&quot;&gt;Becca Liss&lt;/a&gt; and &lt;a href=&quot;https://github.com/modernlegend&quot;&gt;Yanik Jayaram&lt;/a&gt; for helping me out on this post.&lt;/p&gt;
+</content>
+ </entry>
+ 
+ <entry>
    <title>The Rails View book notes</title>
    <link href="http://www.tseivan.com/the-rails-view-notes"/>
    <updated>2014-11-13T00:00:00-05:00</updated>
    <id>http://www.tseivan.com/the-rails-view-notes</id>
-   <content type="html">&lt;p&gt;&lt;a href=&quot;http://www.amazon.com/The-Rails-View-Maintainable-Experience/dp/1934356875&quot;&gt;&lt;img src=&quot;http://ecx.images-amazon.com/images/I/41kBEVA%2B7pL.jpg&quot; alt=&quot;The Rails View book cover&quot; style=&quot;max-width:100%;&quot;&gt;&lt;/a&gt;&lt;/p&gt;
+   <content type="html">&lt;p&gt;&lt;a href=&quot;http://www.amazon.com/The-Rails-View-Maintainable-Experience/dp/1934356875&quot;&gt;&lt;img src=&quot;http://ecx.images-amazon.com/images/I/41kBEVA%2B7pL.jpg&quot; alt=&quot;The Rails View book cover&quot; /&gt;&lt;/a&gt;&lt;/p&gt;
 
-&lt;h1&gt;Overall Review&lt;/h1&gt;
+&lt;h1 id=&quot;overall-review&quot;&gt;Overall Review&lt;/h1&gt;
 
-&lt;p&gt;I actually learned a few new tips and tricks from this book. It was nice to read a book that's mainly focused on the view end of Rails. And I was surprised by the amount of things I learned since I didn't really know there was that much to talk about for views. However, the book did go in a bit of a tangent regarding Sass (I am biased though since I already knew the syntax before reading this book). Overall I would definitely recommend this book! Go check out their &lt;a href=&quot;http://www.therailsview.com/&quot;&gt;website&lt;/a&gt; and the &lt;a href=&quot;http://www.therailsview.com/rules.pdf&quot;&gt;rules&lt;/a&gt; they have on Rails view layer.&lt;/p&gt;
+&lt;p&gt;I actually learned a few new tips and tricks from this book. It was nice to read a book that’s mainly focused on the view end of Rails. And I was surprised by the amount of things I learned since I didn’t really know there was that much to talk about for views. However, the book did go in a bit of a tangent regarding Sass (I am biased though since I already knew the syntax before reading this book). Overall I would definitely recommend this book! Go check out their &lt;a href=&quot;http://www.therailsview.com/&quot;&gt;website&lt;/a&gt; and the &lt;a href=&quot;http://www.therailsview.com/rules.pdf&quot;&gt;rules&lt;/a&gt; they have on Rails view layer.&lt;/p&gt;
 
-&lt;h1&gt;Chapter 1&lt;/h1&gt;
-
+&lt;h1 id=&quot;chapter-1&quot;&gt;Chapter 1&lt;/h1&gt;
 &lt;ul&gt;
-&lt;li&gt;If you don't specify the folder in the partial file name, Rails will look for the file in the current controller’s view directory&lt;/li&gt;
-&lt;li&gt;Use &lt;code&gt;yield :sidebar&lt;/code&gt;, &lt;code&gt;content_for :sidebar do&lt;/code&gt;, and &lt;code&gt;content_for?(:sidebar)&lt;/code&gt; to allow content in the view to hook into the layout.&lt;/li&gt;
-&lt;li&gt;There is a nifty solution for how to handle navigation in Rails. Put nav in a partial that uses &lt;code&gt;content_for&lt;/code&gt;. Then, use a helper method to render this partial with a local variable dictating what the current page is:&lt;/li&gt;
+  &lt;li&gt;If you don’t specify the folder in the partial file name, Rails will look for the file in the current controller’s view directory&lt;/li&gt;
+  &lt;li&gt;Use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;yield :sidebar&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;content_for :sidebar do&lt;/code&gt;, and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;content_for?(:sidebar)&lt;/code&gt; to allow content in the view to hook into the layout.&lt;/li&gt;
+  &lt;li&gt;There is a nifty solution for how to handle navigation in Rails. Put nav in a partial that uses &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;content_for&lt;/code&gt;. Then, use a helper method to render this partial with a local variable dictating what the current page is:&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;currently_at&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tab&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;render&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;partial&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;'layouts/main_nav'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;locals&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;current_tab&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tab&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;currently_at&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tab&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;render&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;partial: &lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&apos;layouts/main_nav&apos;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;locals: &lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;current_tab: &lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tab&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
 &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
 
 &lt;ul&gt;
-&lt;li&gt;
-&lt;code&gt;flash[:notice]&lt;/code&gt;, &lt;code&gt;flash[:alert]&lt;/code&gt; and the corresponding &lt;code&gt;alert&lt;/code&gt;, and &lt;code&gt;notice&lt;/code&gt; helper methods.&lt;/li&gt;
-&lt;li&gt;&lt;a href=&quot;https://github.com/bruce/ie_conditional_tag&quot;&gt;ie_conditional_tag gem&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;flash[:notice]&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;flash[:alert]&lt;/code&gt; and the corresponding &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;alert&lt;/code&gt;, and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;notice&lt;/code&gt; helper methods.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/bruce/ie_conditional_tag&quot;&gt;ie_conditional_tag gem&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h1&gt;Chapter 2&lt;/h1&gt;
-
+&lt;h1 id=&quot;chapter-2&quot;&gt;Chapter 2&lt;/h1&gt;
 &lt;ul&gt;
-&lt;li&gt;
-&lt;code&gt;raw&lt;/code&gt; method (similar to &lt;code&gt;html_safe&lt;/code&gt;), &lt;code&gt;link_to&lt;/code&gt;, &lt;code&gt;image_tag&lt;/code&gt;, &lt;code&gt;number_to_currency&lt;/code&gt;, &lt;code&gt;number_to_human_size&lt;/code&gt;
-&lt;/li&gt;
-&lt;li&gt;Use this to avoid putting law of demeter solution in model and avoid being tied to having &lt;a href=&quot;https://github.com/creation&quot; class=&quot;user-mention&quot;&gt;@creation&lt;/a&gt; present (it's a default parameter):&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;raw&lt;/code&gt; method (similar to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;html_safe&lt;/code&gt;), &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;link_to&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;image_tag&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;number_to_currency&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;number_to_human_size&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Use this to avoid putting law of demeter solution in model and avoid being tied to having @creation present (it’s a default parameter):&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;creation_client_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;creation&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;vi&quot;&gt;@creation&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;creation&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;project&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;creation_client_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;creation&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;vi&quot;&gt;@creation&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;creation&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;project&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;client&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;name&lt;/span&gt;
 &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
 
 &lt;ul&gt;
-&lt;li&gt;Use this to render collections so that the html for an item is abstracted away as well as the iteration (which should be Rails responsibility):&lt;/li&gt;
+  &lt;li&gt;Use this to render collections so that the html for an item is abstracted away as well as the iteration (which should be Rails responsibility):&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;%=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;render&lt;/span&gt; &lt;span class=&quot;vi&quot;&gt;@creations&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;sx&quot;&gt;%= render @creations %&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
 
 &lt;ul&gt;
-&lt;li&gt;Move if/elsif/else clause into separate partials and a helper that renders the correct partial:&lt;/li&gt;
+  &lt;li&gt;Move if/elsif/else clause into separate partials and a helper that renders the correct partial:&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;%=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;controls_for_creation&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;creation&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;sx&quot;&gt;%= controls_for_creation(creation) %&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
 
 &lt;ul&gt;
-&lt;li&gt;extract long conditions to method_name? helpers. You can even &lt;code&gt;yield&lt;/code&gt; in that method so that it can take a block of html&lt;/li&gt;
-&lt;li&gt;Use content_tag_for when attributes become complex (use &lt;code&gt;dom_id&lt;/code&gt;)&lt;/li&gt;
+  &lt;li&gt;extract long conditions to method_name? helpers. You can even &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;yield&lt;/code&gt; in that method so that it can take a block of html&lt;/li&gt;
+  &lt;li&gt;Use content_tag_for when attributes become complex (use &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;dom_id&lt;/code&gt;)&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h1&gt;Chapter 3&lt;/h1&gt;
+&lt;h1 id=&quot;chapter-3&quot;&gt;Chapter 3&lt;/h1&gt;
+&lt;ul&gt;
+  &lt;li&gt;sprockets looks in these folders: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;app/assets&lt;/code&gt; for application code, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;lib/assets&lt;/code&gt; for code used in several projects, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;vendor/assets&lt;/code&gt; for 3rd party code&lt;/li&gt;
+  &lt;li&gt;directives: &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;require_tree&lt;/code&gt; to require a directory recursively and alphabetically, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;require_self&lt;/code&gt; for the file itself&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;rails runner &quot;y Rails.configuration.assets.paths&quot;&lt;/code&gt; to see where sprocket finds the files&lt;/li&gt;
+  &lt;li&gt;Use require when you just want to shove content together and @import when you want to use the definitions present in the dependency in the current file&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;asset-path&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;image-path&lt;/code&gt; Sass functions&lt;/li&gt;
+  &lt;li&gt;sprites (use compass)&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;@font-face&lt;/code&gt; css declaration&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;stylesheet_link_tag&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1 id=&quot;chapter-4&quot;&gt;Chapter 4&lt;/h1&gt;
 
 &lt;ul&gt;
-&lt;li&gt;sprockets looks in these folders: &lt;code&gt;app/assets&lt;/code&gt; for application code, &lt;code&gt;lib/assets&lt;/code&gt; for code used in several projects, &lt;code&gt;vendor/assets&lt;/code&gt; for 3rd party code&lt;/li&gt;
-&lt;li&gt;directives: &lt;code&gt;require_tree&lt;/code&gt; to require a directory recursively and alphabetically, &lt;code&gt;require_self&lt;/code&gt; for the file itself&lt;/li&gt;
-&lt;li&gt;
-&lt;code&gt;rails runner &quot;y Rails.configuration.assets.paths&quot;&lt;/code&gt; to see where sprocket finds the files&lt;/li&gt;
-&lt;li&gt;Use require when you just want to shove content together and &lt;a href=&quot;https://github.com/import&quot; class=&quot;user-mention&quot;&gt;@import&lt;/a&gt; when you want to use the definitions present in the dependency in the current file&lt;/li&gt;
-&lt;li&gt;
-&lt;code&gt;asset-path&lt;/code&gt; and &lt;code&gt;image-path&lt;/code&gt; Sass functions&lt;/li&gt;
-&lt;li&gt;sprites (use compass)&lt;/li&gt;
-&lt;li&gt;
-&lt;code&gt;@font-face&lt;/code&gt; css declaration&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;stylesheet_link_tag&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;javascript_include_tag&lt;/code&gt; (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;include_js&lt;/code&gt;)&lt;/li&gt;
+  &lt;li&gt;jquery_ujs
+    &lt;ul&gt;
+      &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;confirm&lt;/code&gt; parameter to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;link_to&lt;/code&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;remote&lt;/code&gt; parameter to a form (render a js partial)&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;j&lt;/code&gt;/&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;escape_javascript&lt;/code&gt; method&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h1&gt;Chapter 4&lt;/h1&gt;
-
+&lt;h1 id=&quot;chapter-5&quot;&gt;Chapter 5&lt;/h1&gt;
 &lt;ul&gt;
-&lt;li&gt;
-&lt;code&gt;javascript_include_tag&lt;/code&gt; (&lt;code&gt;include_js&lt;/code&gt;)&lt;/li&gt;
-&lt;li&gt;jquery_ujs
-
-&lt;ul&gt;
-&lt;li&gt;
-&lt;code&gt;confirm&lt;/code&gt; parameter to &lt;code&gt;link_to&lt;/code&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;code&gt;remote&lt;/code&gt; parameter to a form (render a js partial)&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;code&gt;j&lt;/code&gt;/&lt;code&gt;escape_javascript&lt;/code&gt; method&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;form_for&lt;/code&gt; (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;multipart&lt;/code&gt; option), &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;text_field&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;label&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;file_field&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;submit&lt;/code&gt;, &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;form_tag&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;html fieldsets&lt;/li&gt;
+  &lt;li&gt;tabindex for tabbing order&lt;/li&gt;
+  &lt;li&gt;optgroup for grouping options. Pass an array of arrays to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;select_tag&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;autofocus (html5)&lt;/li&gt;
+  &lt;li&gt;Rails automatically wraps div with field_with_errors&lt;/li&gt;
+  &lt;li&gt;form builder &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;error_messages&lt;/code&gt; method (https://github.com/joelmoss/dynamic_form)&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;fields_for&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;ActionView::Helpers::FormBuilder&lt;/code&gt; You can subclass this to add methods to the form builder object. Ex:&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h1&gt;Chapter 5&lt;/h1&gt;
-
-&lt;ul&gt;
-&lt;li&gt;
-&lt;code&gt;form_for&lt;/code&gt; (&lt;code&gt;multipart&lt;/code&gt; option), &lt;code&gt;text_field&lt;/code&gt;, &lt;code&gt;label&lt;/code&gt;, &lt;code&gt;file_field&lt;/code&gt;, &lt;code&gt;submit&lt;/code&gt;, &lt;code&gt;form_tag&lt;/code&gt;
-&lt;/li&gt;
-&lt;li&gt;html fieldsets&lt;/li&gt;
-&lt;li&gt;tabindex for tabbing order&lt;/li&gt;
-&lt;li&gt;optgroup for grouping options. Pass an array of arrays to &lt;code&gt;select_tag&lt;/code&gt;
-&lt;/li&gt;
-&lt;li&gt;autofocus (html5)&lt;/li&gt;
-&lt;li&gt;Rails automatically wraps div with field_with_errors&lt;/li&gt;
-&lt;li&gt;form builder &lt;code&gt;error_messages&lt;/code&gt; method (&lt;a href=&quot;https://github.com/joelmoss/dynamic_form&quot;&gt;https://github.com/joelmoss/dynamic_form&lt;/a&gt;)&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;fields_for&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;
-&lt;code&gt;ActionView::Helpers::FormBuilder&lt;/code&gt; You can subclass this to add methods to the form builder object. Ex:&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;field_item&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attribute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;block&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;vi&quot;&gt;@template&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;content_tag&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:li&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
-    &lt;span class=&quot;vi&quot;&gt;@template&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;concat&lt;/span&gt; &lt;span class=&quot;vi&quot;&gt;@template&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;label&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attribute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;field_item&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attribute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;nil&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;block&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;vi&quot;&gt;@template&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;content_tag&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:li&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+    &lt;span class=&quot;vi&quot;&gt;@template&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;concat&lt;/span&gt; &lt;span class=&quot;vi&quot;&gt;@template&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;label&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attribute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
     &lt;span class=&quot;k&quot;&gt;yield&lt;/span&gt;
   &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
 &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
 
-&lt;p&gt;pass &lt;code&gt;builder&lt;/code&gt; paramter to &lt;code&gt;form_for&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;pass &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;builder&lt;/code&gt; paramter to &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;form_for&lt;/code&gt;&lt;/p&gt;
 
 &lt;ul&gt;
-&lt;li&gt;input tag has new type options from html5&lt;/li&gt;
+  &lt;li&gt;input tag has new type options from html5&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h1&gt;Chapter 6&lt;/h1&gt;
-
+&lt;h1 id=&quot;chapter-6&quot;&gt;Chapter 6&lt;/h1&gt;
 &lt;ul&gt;
-&lt;li&gt;Make a presenter object and an associating helper method. Use a block so that the presenter object is yielded instead of assigning a variable for the presenter.&lt;/li&gt;
-&lt;li&gt;We pass along the presenter instance using the &lt;code&gt;:object&lt;/code&gt; option, which will make sure it's assigned to a variable with the same name as the partial (in this case, status). This allows the partial to call methods on this object directly&lt;/li&gt;
-&lt;li&gt;We can make presenters render itself. Pass &lt;code&gt;self&lt;/code&gt; to the presenter (self is the template object). Then add a &lt;code&gt;to_s&lt;/code&gt; that renders the partial corresponding to the presenter&lt;/li&gt;
-&lt;li&gt;test that the presenter returns correct values, helper returns presenter and that the &lt;code&gt;to_s&lt;/code&gt; has some correct markup, controller has some correct markup&lt;/li&gt;
-&lt;li&gt;Interesting syntax here:&lt;/li&gt;
+  &lt;li&gt;Make a presenter object and an associating helper method. Use a block so that the presenter object is yielded instead of assigning a variable for the presenter.&lt;/li&gt;
+  &lt;li&gt;We pass along the presenter instance using the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;:object&lt;/code&gt; option, which will make sure it’s assigned to a variable with the same name as the partial (in this case, status). This allows the partial to call methods on this object directly&lt;/li&gt;
+  &lt;li&gt;We can make presenters render itself. Pass &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;self&lt;/code&gt; to the presenter (self is the template object). Then add a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;to_s&lt;/code&gt; that renders the partial corresponding to the presenter&lt;/li&gt;
+  &lt;li&gt;test that the presenter returns correct values, helper returns presenter and that the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;to_s&lt;/code&gt; has some correct markup, controller has some correct markup&lt;/li&gt;
+  &lt;li&gt;Interesting syntax here:&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;vi&quot;&gt;@columns&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;each_with_object&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({})&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;title&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attribute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;memo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;vi&quot;&gt;@columns&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;each_with_object&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({})&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;title&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attribute&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;memo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
 
-&lt;h1&gt;Chapter 7&lt;/h1&gt;
-
+&lt;h1 id=&quot;chapter-7&quot;&gt;Chapter 7&lt;/h1&gt;
 &lt;ul&gt;
-&lt;li&gt;
-&lt;code&gt;request.format = :mobile&lt;/code&gt; to create mobile version views (register mime type with Rails)&lt;/li&gt;
-&lt;li&gt;Allow users to override the agent query &lt;/li&gt;
-&lt;li&gt;&lt;code&gt;link_to_unless&lt;/code&gt;&lt;/li&gt;
-&lt;li&gt;jQuery Mobile&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;request.format = :mobile&lt;/code&gt; to create mobile version views (register mime type with Rails)&lt;/li&gt;
+  &lt;li&gt;Allow users to override the agent query&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;link_to_unless&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;jQuery Mobile&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h1&gt;Chapter 8&lt;/h1&gt;
-
+&lt;h1 id=&quot;chapter-8&quot;&gt;Chapter 8&lt;/h1&gt;
 &lt;ul&gt;
-&lt;li&gt;ActionMailer&lt;/li&gt;
-&lt;li&gt;Use ASCII characters for text version of emails and provide a link to view the email&lt;/li&gt;
-&lt;li&gt;&lt;a href=&quot;https://github.com/ryanb/letter_opener&quot;&gt;letter_opener gem&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;ActionMailer&lt;/li&gt;
+  &lt;li&gt;Use ASCII characters for text version of emails and provide a link to view the email&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/ryanb/letter_opener&quot;&gt;letter_opener gem&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h1&gt;Chapter 9&lt;/h1&gt;
-
+&lt;h1 id=&quot;chapter-9&quot;&gt;Chapter 9&lt;/h1&gt;
 &lt;ul&gt;
-&lt;li&gt;A/B testing with &lt;a href=&quot;http://vanity.labnotes.org/&quot;&gt;Vanity&lt;/a&gt;
-&lt;/li&gt;
-&lt;li&gt;&lt;a href=&quot;https://github.com/aanand/deadweight&quot;&gt;Deadweight gem&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;</content>
+  &lt;li&gt;A/B testing with &lt;a href=&quot;http://vanity.labnotes.org/&quot;&gt;Vanity&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/aanand/deadweight&quot;&gt;Deadweight gem&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</content>
  </entry>
  
  <entry>
@@ -181,23 +510,24 @@
    <link href="http://www.tseivan.com/gogaruco-2014-talks"/>
    <updated>2014-10-16T00:00:00-04:00</updated>
    <id>http://www.tseivan.com/gogaruco-2014-talks</id>
-   <content type="html">&lt;p&gt;I enjoy watching conference talks as they do not require a lot of focus and attention that programming demands. It's a nice way to be productive while feeling lazy (I usually watch talks from my tablet on my bed). Talks are an insight into the experiences and interests of other people in the community. There are many moments of &quot;Wow, that was really cool, I should check that out sometime&quot; or &quot;I didn't know that is how it worked. TIL.&quot;. My curiosity and excitement about programming are piqued, especially at times when I've been stuck working on a long project.&lt;/p&gt;
+   <content type="html">&lt;p&gt;I enjoy watching conference talks as they do not require a lot of focus and attention that programming demands. It’s a nice way to be productive while feeling lazy (I usually watch talks from my tablet on my bed). Talks are an insight into the experiences and interests of other people in the community. There are many moments of “Wow, that was really cool, I should check that out sometime” or “I didn’t know that is how it worked. TIL.”. My curiosity and excitement about programming are piqued, especially at times when I’ve been stuck working on a long project.&lt;/p&gt;
 
-&lt;p&gt;My main source of talks are from &lt;a href=&quot;https://www.youtube.com/user/Confreaks&quot;&gt;Confreaks&lt;/a&gt;. They upload recorded videos of talks from most of the popular conferences and I'm extremely grateful and appreciate of their work. Whenever they upload videos of a recent conference, I try to make time to watch most of them or at least the ones with catchy titles. After doing this for some time, I realize that sometimes there are talks that I really enjoyed but I forget what the speaker talked about several weeks later. By compiling a list of my favorite talks with a quick summary, I hope this will serve as a helpful bookmark for my future self. This list is highly subjected and is based on my interests and background. It might be that I'm already familiar with the topic so the talk didn't make my list. If you by any chance share similar tastes with me, hopefully this list is a good recommendation of what you should watch!&lt;/p&gt;
+&lt;p&gt;My main source of talks are from &lt;a href=&quot;https://www.youtube.com/user/Confreaks&quot;&gt;Confreaks&lt;/a&gt;. They upload recorded videos of talks from most of the popular conferences and I’m extremely grateful and appreciate of their work. Whenever they upload videos of a recent conference, I try to make time to watch most of them or at least the ones with catchy titles. After doing this for some time, I realize that sometimes there are talks that I really enjoyed but I forget what the speaker talked about several weeks later. By compiling a list of my favorite talks with a quick summary, I hope this will serve as a helpful bookmark for my future self. This list is highly subjected and is based on my interests and background. It might be that I’m already familiar with the topic so the talk didn’t make my list. If you by any chance share similar tastes with me, hopefully this list is a good recommendation of what you should watch!&lt;/p&gt;
 
 &lt;p&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=r3bi2xv5t20&quot;&gt;Gilding the Rose: Refactoring Legacy Code&lt;/a&gt; - A refactoring talk of the Gilded Rose. Sandi Metz did a similar refactoring talk on this kata. Randy Coulman walks through how he firsts mechanically restructures the code and then uses small steps to improve.&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=pTmTh7LNVic&quot;&gt;Building an ORM with AReL: Walking up the (AS)Tree&lt;/a&gt; - A quick introduction to how an ORM is coded. There are concepts like adapters, types, builder, column, attributes, attribute set, etc... Vipul Amler basically does a walkthrough of &lt;a href=&quot;https://github.com/prathamesh-sonpatki/torm&quot;&gt;TORM - Tiny implementation of ORM on top of ARel&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=pTmTh7LNVic&quot;&gt;Building an ORM with AReL: Walking up the (AS)Tree&lt;/a&gt; - A quick introduction to how an ORM is coded. There are concepts like adapters, types, builder, column, attributes, attribute set, etc… Vipul Amler basically does a walkthrough of &lt;a href=&quot;https://github.com/prathamesh-sonpatki/torm&quot;&gt;TORM - Tiny implementation of ORM on top of ARel&lt;/a&gt;.&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=asttlUG2OuI&quot;&gt;Why We Can't Have Nice Things: Floats, Dates, and Names&lt;/a&gt; - I remember watching this talk from some other conference. Regardless, this is a funny and interesting look at the weird edge cases of floats, dates, and names when we make bad assumptions. John Feminella has made a repo for exploring Ruby's Float internals &lt;a href=&quot;https://github.com/fj/floatboat&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=asttlUG2OuI&quot;&gt;Why We Can’t Have Nice Things: Floats, Dates, and Names&lt;/a&gt; - I remember watching this talk from some other conference. Regardless, this is a funny and interesting look at the weird edge cases of floats, dates, and names when we make bad assumptions. John Feminella has made a repo for exploring Ruby’s Float internals &lt;a href=&quot;https://github.com/fj/floatboat&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
 
 &lt;p&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=EcnvbsXdbtI&quot;&gt;Building Board Games with Ruby&lt;/a&gt; - I thought this was a very interesting talk as Yonatan Bergman uses Ruby to tests out how well his board game does via simulations. &lt;a href=&quot;https://github.com/yonbergman/missiles_and_microchips&quot;&gt;Here is his repo&lt;/a&gt;.&lt;/p&gt;
 
 &lt;p&gt;&lt;a href=&quot;https://www.youtube.com/watch?v=4tBCDOgtWCg&quot;&gt;The Short and Happy Lives of TCP and HTTP Requests&lt;/a&gt; - Starr Horne talks about the protocol of the Web and how we can optimize it. A lot of this stuff is above my head but this is a reminder to read &lt;a href=&quot;http://chimera.labs.oreilly.com/books/1230000000545&quot;&gt;High Performance Browser Networking&lt;/a&gt;.&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;http://codon.com/refactoring-ruby-with-monads&quot;&gt;Refactoring Ruby with Monads&lt;/a&gt; - One of the best talks I've ever seen. Tom Stuart introduces the concept of monads and it's really mind blowing because I never thought about things (he has 3 real world examples) like that before. I like the way he presented and his understandable explanations. I need to check out his other works!&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;http://codon.com/refactoring-ruby-with-monads&quot;&gt;Refactoring Ruby with Monads&lt;/a&gt; - One of the best talks I’ve ever seen. Tom Stuart introduces the concept of monads and it’s really mind blowing because I never thought about things (he has 3 real world examples) like that before. I like the way he presented and his understandable explanations. I need to check out his other works!&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;https://github.com/ConradIrwin/console.log&quot;&gt;console.log gem&lt;/a&gt; - In one of the lightning talks, Conrad Irwin talks about the console.log gem that spits any object in the console of the browser. Looks very cool and I need to check it out!&lt;/p&gt;</content>
+&lt;p&gt;&lt;a href=&quot;https://github.com/ConradIrwin/console.log&quot;&gt;console.log gem&lt;/a&gt; - In one of the lightning talks, Conrad Irwin talks about the console.log gem that spits any object in the console of the browser. Looks very cool and I need to check it out!&lt;/p&gt;
+</content>
  </entry>
  
  <entry>
@@ -205,45 +535,38 @@
    <link href="http://www.tseivan.com/github_references"/>
    <updated>2014-08-17T00:00:00-04:00</updated>
    <id>http://www.tseivan.com/github_references</id>
-   <content type="html">&lt;p&gt;There are two special types of references that are available in your GitHub repository. GitHub creates these references for each pull request; they are &lt;code&gt;pull/:id/head&lt;/code&gt; and &lt;code&gt;pull/:id/merge&lt;/code&gt;. Let's take a look at them and how they can be useful.&lt;/p&gt;
+   <content type="html">&lt;p&gt;There are two special types of references that are available in your GitHub repository. GitHub creates these references for each pull request; they are &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pull/:id/head&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pull/:id/merge&lt;/code&gt;. Let’s take a look at them and how they can be useful.&lt;/p&gt;
 
-&lt;h2&gt;Pull Request Head&lt;/h2&gt;
-
-&lt;p&gt;GitHub automatically stashes all the changes for a pull request against the main repository. And this head reference points at the latest commit. Why does GitHub do this? Well, when the requester deletes his/her fork, one might think that the changes are also lost. However, this is not true. You are still able to merge the pull request because those changes are &quot;saved&quot; in the reference. Nothing is lost!&lt;/p&gt;
+&lt;h2 id=&quot;pull-request-head&quot;&gt;Pull Request Head&lt;/h2&gt;
+&lt;p&gt;GitHub automatically stashes all the changes for a pull request against the main repository. And this head reference points at the latest commit. Why does GitHub do this? Well, when the requester deletes his/her fork, one might think that the changes are also lost. However, this is not true. You are still able to merge the pull request because those changes are “saved” in the reference. Nothing is lost!&lt;/p&gt;
 
 &lt;p&gt;In addition, you can checkout the pull request locally without needing to add a remote refspec. This is extremely helpful when there is a stale pull request that conflicts with master and the remote repository has been deleted. You would simply &lt;a href=&quot;https://help.github.com/articles/checking-out-pull-requests-locally#modifying-an-inactive-pull-request-locally&quot;&gt;modify it locally&lt;/a&gt; before merging.&lt;/p&gt;
 
-&lt;p&gt;One of the ways I use this reference to improve my workflow is that I can do a comparison across pull requests on a project. Sometimes, a massive project can be broken into two pull requests where one includes the other. That is, the successive pull request depends on the work done in the previous one. I would code review the first one and give it a &lt;a href=&quot;https://assets.github.com/images/icons/emoji/unicode/1f44d.png&quot; target=&quot;_blank&quot;&gt;&lt;img class=&quot;emoji&quot; title=&quot;:+1:&quot; alt=&quot;:+1:&quot; src=&quot;https://assets.github.com/images/icons/emoji/unicode/1f44d.png&quot; height=&quot;20&quot; width=&quot;20&quot; align=&quot;absmiddle&quot; style=&quot;max-width:100%;&quot;&gt;&lt;/a&gt;. But when, I review the second pull request, the diff on GitHub includes changes from &lt;strong&gt;both&lt;/strong&gt; pull requests. This is not ideal because I want to see changes that were made specifically for the second pull request; the commits that I haven't seen yet. With head references, I can make this view by constructing a GitHub compare link between those two references. Here is a quick demonstration of this: &lt;a href=&quot;https://github.com/ivantsepp/ivantsepp.github.io/pull/8&quot;&gt;#8&lt;/a&gt; works on top of &lt;a href=&quot;https://github.com/ivantsepp/ivantsepp.github.io/pull/7&quot;&gt;#7&lt;/a&gt; but the &lt;a href=&quot;https://github.com/ivantsepp/ivantsepp.github.io/compare/pull%2F7%2Fhead...pull%2F8%2Fhead?w=1&quot;&gt;compare link&lt;/a&gt; only shows the commits made in the second pull request.&lt;/p&gt;
+&lt;p&gt;One of the ways I use this reference to improve my workflow is that I can do a comparison across pull requests on a project. Sometimes, a massive project can be broken into two pull requests where one includes the other. That is, the successive pull request depends on the work done in the previous one. I would code review the first one and give it a :+1:. But when, I review the second pull request, the diff on GitHub includes changes from &lt;strong&gt;both&lt;/strong&gt; pull requests. This is not ideal because I want to see changes that were made specifically for the second pull request; the commits that I haven’t seen yet. With head references, I can make this view by constructing a GitHub compare link between those two references. Here is a quick demonstration of this: &lt;a href=&quot;https://github.com/ivantsepp/ivantsepp.github.io/pull/8&quot;&gt;#8&lt;/a&gt; works on top of &lt;a href=&quot;https://github.com/ivantsepp/ivantsepp.github.io/pull/7&quot;&gt;#7&lt;/a&gt; but the &lt;a href=&quot;https://github.com/ivantsepp/ivantsepp.github.io/compare/pull%2F7%2Fhead...pull%2F8%2Fhead?w=1&quot;&gt;compare link&lt;/a&gt; only shows the commits made in the second pull request.&lt;/p&gt;
 
-&lt;p&gt;As a side note, just as you can hide whitespace diff with &lt;code&gt;git diff -w&lt;/code&gt; or &lt;code&gt;git diff --ignore-all-space&lt;/code&gt; on the command line, you can add &lt;code&gt;?w=1&lt;/code&gt; to the URL to get the same effect with the GitHub view. There are some other &lt;a href=&quot;https://github.com/blog/967-github-secrets&quot;&gt;useful GitHub secrets&lt;/a&gt; you should check out.&lt;/p&gt;
+&lt;p&gt;As a side note, just as you can hide whitespace diff with &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git diff -w&lt;/code&gt; or &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git diff --ignore-all-space&lt;/code&gt; on the command line, you can add &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;?w=1&lt;/code&gt; to the URL to get the same effect with the GitHub view. There are some other &lt;a href=&quot;https://github.com/blog/967-github-secrets&quot;&gt;useful GitHub secrets&lt;/a&gt; you should check out.&lt;/p&gt;
 
-&lt;p&gt;Another way I used this functionality is extending the concept of checking out a pull request locally. &lt;a href=&quot;https://github.com/princesspretzel&quot; class=&quot;user-mention&quot;&gt;@princesspretzel&lt;/a&gt;, who came up with this idea initially, wanted to be able to open all the files corresponding to a pull request. There are two use cases for this feature:&lt;/p&gt;
-
+&lt;p&gt;Another way I used this functionality is extending the concept of checking out a pull request locally. @princesspretzel, who came up with this idea initially, wanted to be able to open all the files corresponding to a pull request. There are two use cases for this feature:&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;You are switching between branches and want to open all the changed files to resume work.&lt;/li&gt;
-&lt;li&gt;You are code reviewing a massive branch and want to open the files to view changes instead of constantly scrolling the long diff view.&lt;/li&gt;
+  &lt;li&gt;You are switching between branches and want to open all the changed files to resume work.&lt;/li&gt;
+  &lt;li&gt;You are code reviewing a massive branch and want to open the files to view changes instead of constantly scrolling the long diff view.&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;p&gt;To achieve this, we can ask the &lt;a href=&quot;https://developer.github.com/v3/pulls/#list-pull-requests-files&quot;&gt;GitHub Pull Request API&lt;/a&gt; to get a list of modified files for a pull request. Afterwards, we can checkout locally using &lt;code&gt;pull/:id/head&lt;/code&gt; which allows us to see the changes in the editor (the pull request might have added new files). The last step is to simply invoke the text editor to open those modified files. We are currently working on a &lt;a href=&quot;https://github.com/princesspretzel/spoke&quot;&gt;sublime plugin&lt;/a&gt; that does just that and I've created this command in &lt;a href=&quot;https://github.com/ivantsepp/github_tools&quot;&gt;GithubTools&lt;/a&gt;, my collection of command line tools for GitHub.&lt;/p&gt;
+&lt;p&gt;To achieve this, we can ask the &lt;a href=&quot;https://developer.github.com/v3/pulls/#list-pull-requests-files&quot;&gt;GitHub Pull Request API&lt;/a&gt; to get a list of modified files for a pull request. Afterwards, we can checkout locally using &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pull/:id/head&lt;/code&gt; which allows us to see the changes in the editor (the pull request might have added new files). The last step is to simply invoke the text editor to open those modified files. We are currently working on a &lt;a href=&quot;https://github.com/princesspretzel/spoke&quot;&gt;sublime plugin&lt;/a&gt; that does just that and I’ve created this command in &lt;a href=&quot;https://github.com/ivantsepp/github_tools&quot;&gt;GithubTools&lt;/a&gt;, my collection of command line tools for GitHub.&lt;/p&gt;
 
-&lt;h2&gt;Pull Request Merge&lt;/h2&gt;
-
-&lt;p&gt;The pull request merge reference points to the merge commit between the pull request and the base branch. I believe that GitHub creates this commit to test the mergeability of the pull request. How can this reference be useful? Well, TravisCI uses it to get a copy of the repository as if the pull request has been merged. Then, it will run the tests against this working copy. If you look at &lt;a href=&quot;https://travis-ci.org/jekyll/jekyll/jobs/32736147&quot;&gt;this example&lt;/a&gt;, you can see the job runs &lt;code&gt;git fetch origin +refs/pull/2762/merge:&lt;/code&gt; followed by a &lt;code&gt;git checkout -qf FETCH_HEAD&lt;/code&gt; command.&lt;/p&gt;
+&lt;h2 id=&quot;pull-request-merge&quot;&gt;Pull Request Merge&lt;/h2&gt;
+&lt;p&gt;The pull request merge reference points to the merge commit between the pull request and the base branch. I believe that GitHub creates this commit to test the mergeability of the pull request. How can this reference be useful? Well, TravisCI uses it to get a copy of the repository as if the pull request has been merged. Then, it will run the tests against this working copy. If you look at &lt;a href=&quot;https://travis-ci.org/jekyll/jekyll/jobs/32736147&quot;&gt;this example&lt;/a&gt;, you can see the job runs &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git fetch origin +refs/pull/2762/merge:&lt;/code&gt; followed by a &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;git checkout -qf FETCH_HEAD&lt;/code&gt; command.&lt;/p&gt;
 
 &lt;p&gt;Another hypothetical use case for this reference is checking mergeability. You can determine &lt;a href=&quot;https://developer.github.com/v3/pulls/#mergability&quot;&gt;mergeability&lt;/a&gt; by using the API but we can do this programmatically without the API call. One could fetch both the pull request head and the pull request merge references and determine if the latest sha in the pull request is in the history of the merge commit. The pull request is mergeable if so and not mergeable otherwise. I am planning on testing this out and implementing it in &lt;a href=&quot;https://github.com/ivantsepp/github_tools&quot;&gt;GithubTools&lt;/a&gt;.&lt;/p&gt;
 
-&lt;hr&gt;
-
-&lt;p&gt;Let me know if you know of any other ways of using GitHub's special references for creating a better workflow. Here are some external links that you definitely should check out:&lt;/p&gt;
-
+&lt;hr /&gt;
+&lt;p&gt;Let me know if you know of any other ways of using GitHub’s special references for creating a better workflow. Here are some external links that you definitely should check out:&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;
-&lt;a href=&quot;http://zachholman.com/talk/more-git-and-github-secrets/&quot;&gt;Zach Holman's talk &quot;More Git and GitHub Secrets&quot;&lt;/a&gt; - This is where I learned about these references. The talk also has some of nice nuggets of information.&lt;/li&gt;
-&lt;li&gt;
-&lt;a href=&quot;http://christoph.ruegg.name/blog/git-howto-mirror-a-github-repository-without-pull-refs.html&quot;&gt;Git Howto: Mirror a GitHub Repo Without Pull Refs&lt;/a&gt; - I came across this blog post while writing this. The post shows you how to mirror a GitHub repository without copying these references&lt;/li&gt;
-&lt;li&gt;
-&lt;a href=&quot;https://coderwall.com/p/3dgwcg&quot;&gt;GitHub: add remote for pulls and merges&lt;/a&gt; - Add a remote refspec for grabbing these pull request head and merge references&lt;/li&gt;
-&lt;/ul&gt;</content>
+  &lt;li&gt;&lt;a href=&quot;http://zachholman.com/talk/more-git-and-github-secrets/&quot;&gt;Zach Holman’s talk “More Git and GitHub Secrets”&lt;/a&gt; - This is where I learned about these references. The talk also has some of nice nuggets of information.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://christoph.ruegg.name/blog/git-howto-mirror-a-github-repository-without-pull-refs.html&quot;&gt;Git Howto: Mirror a GitHub Repo Without Pull Refs&lt;/a&gt; - I came across this blog post while writing this. The post shows you how to mirror a GitHub repository without copying these references&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://coderwall.com/p/3dgwcg&quot;&gt;GitHub: add remote for pulls and merges&lt;/a&gt; - Add a remote refspec for grabbing these pull request head and merge references&lt;/li&gt;
+&lt;/ul&gt;
+</content>
  </entry>
  
 

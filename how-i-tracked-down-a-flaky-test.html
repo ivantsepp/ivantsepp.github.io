@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang=en>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="google-site-verification" content="UiM1khOi-7bYxFeIAX3OwH-1zo9_sN2Z01ME_sVXdTU" />
+    <title>Ivan Tse - How I Tracked Down a Flaky Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+    <!-- exo font -->
+    <link href='https://fonts.googleapis.com/css?family=Exo+2:800,300' rel='stylesheet' type='text/css'>
+
+    <!-- syntax highlighting CSS -->
+    <link rel="stylesheet" href="/css/syntax.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/main.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/responsive-nav.css">
+    
+    <link rel="canonical" href="http://www.tseivan.com/how-i-tracked-down-a-flaky-test" />
+    
+
+  </head>
+    <body>
+      <nav class="nav-collapse">
+  <ul>
+    <li><a class="" href="/">Home</a></li>
+
+    
+    
+      
+        
+      
+    
+      
+        
+          <li><a class="" href="/about/">About Me</a></li>
+        
+      
+    
+      
+    
+      
+        
+      
+    
+      
+        
+          <li><a class="" href="/projects/">Projects</a></li>
+        
+      
+    
+      
+    
+      
+    
+      
+    
+
+  </ul>
+</nav>
+
+      <div class="container">
+
+        <header>
+  <h1 class="title"><a href="/">Ivan<strong>Tse</strong></a></h1>
+  <p class="tagline">My journey to better programming and beautiful code</p>
+</header>
+
+        <h1 class="post-title">How I Tracked Down a Flaky Test</h1>
+<p class="meta">Jul 27, 2016 | 9 minutes read</p>
+
+<div class="post">
+<p><em>This post was originally published on the <a href="https://web.archive.org/web/20190113173735/https://www.paperlesspost.com/blog/teams/how-i-tracked-down-a-flaky-test/">Paperless Post engineering blog</a> (via the Wayback Machine).</em></p>
+
+<p>TLDR: I had trouble figuring out the root cause of a flaky test. I made several theories and used lots of logging to debug the issue. It turns out that this flake only occurs when 4 test files run in a specific order. The issue was that global state was leaking through each test run from improper use of Timecop.</p>
+
+<h2 id="what-is-a-flaky-test-and-why-do-we-care">What Is A Flaky Test And Why Do We Care?</h2>
+
+<p>Testing is an important aspect of software development. Tests are used to prevent regressions and allow developers to refactor code with confidence. It’s particularly helpful to run these tests continuously, especially if the tests take more than a couple of minutes to run. At Paperless Post, our unit test suite takes about 5 minutes to complete so we run them on our continuous integration server: Jenkins, which runs these builds on every commit that gets pushed.</p>
+
+<p>We noticed that some builds initially fail, but pass when they are rebuilt. And when we run the exact same test locally, it always passes. This is not a good sign; these are the symptoms of flaky tests. Unlike many bugs, flaky tests are really hard to fix because they’re so hard to reproduce.</p>
+
+<p>One option to address this is to simply ignore these failures, but this is not a good practice. Developers will start lose trust in the tests and will begin to ignore failed builds without looking at the specific failures. Even if all the developers are disciplined enough to look at each failed build, they have to look at the build report to determine whether or not the build failed as a result of a real bug or a flake. This behavior is described in the <a href="https://en.wikipedia.org/wiki/Broken_windows_theory">broken windows theory</a>. Sooner or later, our test suite will accumulate more and more flakes to a point where the tests are not useful or beneficial anymore. So, I decided to jump in and try to determine the root cause of this issue. The following is a recount of my journey.</p>
+
+<h2 id="reconnaissance">Reconnaissance</h2>
+
+<p>First, let’s take a look at the test failure. In this test, we are trying to render a view by doing a GET request. More specifically, we are rendering the cart modal. This is the failure:</p>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>1) Error:
+CartsControllerTest#renders_cart_modal
+ActionView::TemplateError: Called id for nil, which would mistakenly be 4 -- if you really wanted the id of nil, use object_id
+   On line #50 of app/views/carts/_cart_modal.html.haml
+
+   48:           - if current_cart.has_print_orders?
+   49:             - current_cart.print_orders.each do |print_order|
+   50:               = print_order.related_event.id.to_param
+</code></pre></div></div>
+
+<p>The exception is coming from the fact that <code class="language-plaintext highlighter-rouge">print_order.related_event</code> is returning <code class="language-plaintext highlighter-rouge">nil</code>. We want to understand why it’s returning a <code class="language-plaintext highlighter-rouge">nil</code> value but we don’t have the luxury of inspecting the failed test run interactively. Instead, we have to do detective work. We have to gather some clues about the state of the process at the time of the failure. Let’s start by stating the facts. What can we say is true about the system? In the snippet, <code class="language-plaintext highlighter-rouge">current_cart.has_print_orders?</code> has to return <code class="language-plaintext highlighter-rouge">true</code> in order for the test to enter that conditional. So I took a look at the method:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Cart</span> <span class="o">&lt;</span> <span class="no">ActiveRecord</span><span class="o">::</span><span class="no">Base</span>
+
+  <span class="n">has_many</span> <span class="ss">:orders</span><span class="p">,</span> <span class="nb">proc</span> <span class="p">{</span> <span class="n">where</span><span class="p">(</span><span class="ss">:removed</span> <span class="o">=&gt;</span> <span class="kp">false</span><span class="p">)</span> <span class="p">}</span>
+
+  <span class="k">def</span> <span class="nf">print_orders</span>
+    <span class="vi">@print_orders</span> <span class="o">||=</span> <span class="n">orders</span><span class="p">.</span><span class="nf">where</span><span class="p">(</span><span class="ss">print: </span><span class="kp">true</span><span class="p">).</span><span class="nf">order</span><span class="p">(</span><span class="s1">'orders.created_at DESC'</span><span class="p">).</span><span class="nf">to_a</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>In that method, I learned that carts have an association of <code class="language-plaintext highlighter-rouge">has_many :orders</code>, and this method was scoping those orders to print orders as opposed to non-print orders. We also know that with a print order, we can find its related event. In addition to learning about the code, you can also inspect the environment in a successful test run to see what <em>should</em> be happening. I put a <code class="language-plaintext highlighter-rouge">binding.pry</code> statement in that test and saw that the <code class="language-plaintext highlighter-rouge">current_cart</code> has several <code class="language-plaintext highlighter-rouge">print_orders</code>, each with a <code class="language-plaintext highlighter-rouge">related_event</code>.</p>
+
+<h2 id="making-an-hypothesis-indeterministic-ordering">Making An Hypothesis: Indeterministic Ordering</h2>
+
+<p>After gathering some clues, you can make some hypotheses. Did the <code class="language-plaintext highlighter-rouge">related_event</code> get deleted in another test? No, that shouldn’t be possible because we are using transactional fixtures. This means that each test is wrapped in a transaction so that any changes performed in a test are rolled back. In the test we’re looking at, there aren’t any <code class="language-plaintext highlighter-rouge">destroy</code> calls. So even if another test deleted that event, it should be rolled back by the time this test started. Did an invalid print order get created and associated with the cart? Again, it shouldn’t be possible for our test because of transactions. Is <code class="language-plaintext highlighter-rouge">current_cart</code> returning the right cart? Hm, that is an interesting idea. Let’s take a closer look at the <code class="language-plaintext highlighter-rouge">current_cart</code> helper method.</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">current_cart</span>
+  <span class="vi">@current_cart</span> <span class="o">||=</span> <span class="n">current_account</span><span class="p">.</span><span class="nf">current_cart</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>It looks like it’s grabbing the logged-in account and calling <code class="language-plaintext highlighter-rouge">#current_cart</code> on that account.</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">current_cart</span>
+  <span class="n">carts</span><span class="p">.</span><span class="nf">where</span><span class="p">(</span><span class="ss">:complete</span> <span class="o">=&gt;</span> <span class="kp">false</span><span class="p">).</span><span class="nf">order</span><span class="p">(</span><span class="s2">"updated_at DESC"</span><span class="p">).</span><span class="nf">first</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>Aha! What if the <code class="language-plaintext highlighter-rouge">current_account</code> has multiple carts? The query that’s generated above is <code class="language-plaintext highlighter-rouge">SELECT * FROM "carts" WHERE ("carts".account_id = &lt;id&gt;) AND ("carts"."complete" = 'f') ORDER BY updated_at DESC LIMIT 1</code>. Could it be returning the wrong cart? This reminded me of a recent issue that one of our engineers, Becca, observed. She saw that some records were missing and others were duplicated in a paginated API json response. Both these issues are similar and sounds like it could be an indeterministic ordering issue. But what is indeterministic ordering?</p>
+
+<p>The fundamental reason for indeterministic ordering is because of how relational databases are implemented and how the SQL language is specified. The <a href="https://www.postgresql.org/docs/8.3/static/queries-order.html">Postgres documentation</a> says:</p>
+
+<blockquote>
+  <p>After a query has produced an output table (after the select list has been processed) it can optionally be sorted. If sorting is not chosen, the rows will be returned in an unspecified order. The actual order in that case will depend on the scan and join plan types and the order on disk, but it must not be relied on. A particular output ordering can only be guaranteed if the sort step is explicitly chosen.</p>
+</blockquote>
+
+<p>Without an <code class="language-plaintext highlighter-rouge">ORDER BY</code> clause, the records can be returned in any way that’s convenient to the database. In addition, if you specify a column for <code class="language-plaintext highlighter-rouge">ORDER BY</code> where several records have the same value, those records can be returned in any fashion.</p>
+
+<p>This is a common issue and is an easy trap to fall into. Rails even changed their first and last <a href="https://github.com/rails/rails/pull/5153">ActiveRecord implementations</a> in Rails 4 to address this behavior. One solution is to use a unique column to order by. This <a href="https://thomascannon.me/posts/pagination-perils">article</a> goes into more detail about this issue and how to fix it.</p>
+
+<p>Let’s take a look at the carts in our test environment. Lo and behold, the fixtures file:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">cart_1</span><span class="pi">:</span>
+  <span class="na">account</span><span class="pi">:</span> <span class="s">account_1</span>
+
+<span class="na">invalid_cart</span><span class="pi">:</span>
+  <span class="na">account</span><span class="pi">:</span> <span class="s">account_1</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">account_1</code> is the logged in user for our test and it has several carts. Since we didn’t specify any timestamps for <code class="language-plaintext highlighter-rouge">created_at</code> or <code class="language-plaintext highlighter-rouge">updated_at</code>, they all have the same <code class="language-plaintext highlighter-rouge">created_at</code> and <code class="language-plaintext highlighter-rouge">updated_at</code> timestamps.</p>
+
+<p>So, our theory is that the query in <code class="language-plaintext highlighter-rouge">Account#current_cart</code> is indeterministic and that any of these carts could be returned. We believe that <code class="language-plaintext highlighter-rouge">carts(:invalid_cart)</code> is being returned in some cases and it has a print order that does not have a related event. This explains the error and the stacktrace we were seeing. To fix this, we could update our query by adding an “order by” with a more specific clause such as <code class="language-plaintext highlighter-rouge">order("updated_at DESC, id DESC")</code>. Or we could update the fixture file so that the carts have different timestamps.</p>
+
+<p>So I decided to fix it with the latter approach.</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">cart_1</span><span class="pi">:</span>
+  <span class="na">account</span><span class="pi">:</span> <span class="s">account_1</span>
+  <span class="na">updated_at</span><span class="pi">:</span> <span class="s">&lt;%= 5.minutes.from_now %&gt;</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">cart_1</code> should be selected from now on since it should have the a later <code class="language-plaintext highlighter-rouge">updated_at</code> timestamp. An interesting takeaway from this discovery is that we might have other queries with indeterministic ordering. To identify those queries, we could patch ActiveRecord such that it appended a <code class="language-plaintext highlighter-rouge">ORDER BY random()</code> to every query and then seeing if other tests fail. I did just that and the results were interesting, but I’ll save that for another post.</p>
+
+<p>I merged my changes believing that I have fixed the flake. But surprisingly, the flake is still happening! The same test and the same stacktrace were showing up in failed builds. Seems like my fix didn’t address the issue so it’s back to the drawing board.</p>
+
+<h2 id="put-logging-statements-everywhere">Put Logging Statements Everywhere</h2>
+
+<p>This time, I wanted to learn more about the environment of the failing test. I used <code class="language-plaintext highlighter-rouge">puts</code> debugging to print out all possible state such as local variables and their associations if they were ActiveRecord models.</p>
+
+<p>Is <code class="language-plaintext highlighter-rouge">current_account</code> returning the right account? Yes. Is <code class="language-plaintext highlighter-rouge">current_cart</code> returning the correct cart? No. Let’s print out the account’s carts at the beginning of the failing test and right before the exception.</p>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code># At the start of the failing test
+[
+ #&lt;Cart id: 1, created_at: "2016-06-15 03:44:39", updated_at: "2016-06-15 03:49:38" .... &gt;,
+ #&lt;Cart id: 2, created_at: "2016-06-15 03:44:39", updated_at: "2016-06-15 03:44:39" .... &gt;
+]
+
+# Right before the exception
+[
+ #&lt;Cart id: 2, created_at: "2016-06-15 03:44:39", updated_at: "2016-06-15 03:44:39" .... &gt;,
+ #&lt;Cart id: 1, created_at: "2016-06-15 03:44:39", updated_at: "2016-06-15 03:40:23" .... &gt;
+]
+</code></pre></div></div>
+
+<p>At the start of the failing test, we can see the target cart (with id 1) and that it correctly contains an <code class="language-plaintext highlighter-rouge">updated_at</code> timestamp that is 5 minutes after the <code class="language-plaintext highlighter-rouge">created_at</code> timestamp. However, it looks like the <code class="language-plaintext highlighter-rouge">updated_at</code> timestamp of that cart changed somewhere in the failing test.</p>
+
+<h2 id="further-investigation-spoiler-alert-timecop">Further Investigation (Spoiler Alert: Timecop)</h2>
+
+<h2 id="jenkinshost-problems">Jenkins/Host Problems</h2>
+
+<p>After I took a quick look at the controller code, I realized that we have some logic to set the default shipping option of an order if it doesn’t already exist:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">CartsController</span> <span class="o">&lt;</span> <span class="no">ApplicationController</span>
+  <span class="k">def</span> <span class="nf">cart_modal</span>
+    <span class="o">...</span>
+    <span class="n">current_cart</span><span class="p">.</span><span class="nf">shippable_orders</span>
+      <span class="p">.</span><span class="nf">select</span> <span class="p">{</span> <span class="o">|</span><span class="n">o</span><span class="o">|</span> <span class="o">!</span><span class="n">o</span><span class="p">.</span><span class="nf">valid_shipping_option?</span> <span class="p">}</span>
+      <span class="p">.</span><span class="nf">each</span><span class="p">(</span><span class="o">&amp;</span><span class="ss">:set_default_shipping_option</span><span class="p">)</span>
+    <span class="o">...</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>This in turn touched the cart’s timestamp because of the association:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Order</span> <span class="o">&lt;</span> <span class="no">ActiveRecord</span><span class="o">::</span><span class="no">Base</span>
+  <span class="n">belongs_to</span> <span class="ss">:cart</span><span class="p">,</span> <span class="ss">touch: </span><span class="kp">true</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>So that explains why the <code class="language-plaintext highlighter-rouge">updated_at</code> timestamp changed. But what’s <strong>really interesting</strong> is that the timestamp used for <code class="language-plaintext highlighter-rouge">updated_at</code> is before the <code class="language-plaintext highlighter-rouge">created_at</code> timestamp. How did <code class="language-plaintext highlighter-rouge">Time.now</code> somehow end up going back in time?</p>
+
+<p>I was extremely baffled from this behavior. My next hypothesis was that there is some weird time calculation going on in that Jenkins node. We run our tests on a single server so perhaps this is an OS level issue. I spun up a different Jenkins node to build our tests to see if flakes were only happening on that server.</p>
+
+<h2 id="timecop">Timecop</h2>
+
+<p>Nope. The flakes still showed up. Our staff operations engineer, Dan Diego, had an interesting insight and suggested that perhaps this flake is related to <a href="https://github.com/travisjeffery/timecop">Timecop</a>. Timecop is a library that allows you to travel in time by essentially mocking what <code class="language-plaintext highlighter-rouge">Time.now</code> would return. I added more debugging statements to see if Timecop was in play. Timecop mocks the <code class="language-plaintext highlighter-rouge">Time.now</code> method by aliasing the original <code class="language-plaintext highlighter-rouge">Time.now</code> to <code class="language-plaintext highlighter-rouge">Time.now_without_mock_time</code> and overriding <code class="language-plaintext highlighter-rouge">Time.now</code> with <code class="language-plaintext highlighter-rouge">Time.now_with_mock_time</code>. Here’s the <a href="https://github.com/travisjeffery/timecop/blob/314882f24065190c446d8d1eb368f6985885dd28/lib/timecop/time_extensions.rb#L6-L17">implementation</a>. With that in mind, I wanted to see if time was mocked:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">puts</span> <span class="no">Time</span><span class="p">.</span><span class="nf">now_without_mock_time</span><span class="p">.</span><span class="nf">inspect</span>
+</code></pre></div></div>
+
+<p>Hm, nothing interesting came out of that <code class="language-plaintext highlighter-rouge">puts</code> statement. <code class="language-plaintext highlighter-rouge">Time</code> wasn’t being mocked when the flaky test is running. I then decided to record the time at the start of the test build in addition to the time when the flaky test is executed. Aha! The timestamps matched the weird <code class="language-plaintext highlighter-rouge">updated_at</code> timestamp. So actually, <code class="language-plaintext highlighter-rouge">Time.now</code> didn’t end up going back in time. Instead, the <code class="language-plaintext highlighter-rouge">created_at</code> timestamps for the carts are in the future! Somehow, those fixtures were created with a future <code class="language-plaintext highlighter-rouge">Time.now</code> instance.</p>
+
+<p>I again was baffled from this finding. Fixtures are created at the start of the test build (the <a href="https://github.com/rails/rails/blob/d0a5f878d32a4b95f5e866d3b5612acd4b7d16c7/activerecord/lib/active_record/fixtures.rb">entire fixtures implementation</a> is actually pretty succinct and readable). And the time at the beginning of the test suite is correct. I couldn’t think of a reason for why fixtures would be created with an incorrect timestamp.</p>
+
+<h2 id="transactional-fixtures">Transactional fixtures</h2>
+
+<p>After mulling this over for a while, I had another insight. We have some tests that turn off the transactional behavior of tests. This is because we needed to test functionality in <code class="language-plaintext highlighter-rouge">after_commit</code> callbacks. (This is <a href="https://github.com/rails/rails/pull/18458">fixed</a> in Rails 5, you can test those callbacks while still having the transactional fixture behavior). Would setting <code class="language-plaintext highlighter-rouge">self.use_transactional_fixtures = false</code> be forcing fixtures to be reloaded? Yes, in fact that’s true! In the <a href="https://github.com/rails/rails/blob/d0a5f878d32a4b95f5e866d3b5612acd4b7d16c7/activerecord/lib/active_record/fixtures.rb#L984-L989">implementation</a>, Rails will remove existing records and re-insert them for each test case that have transactional fixtures off.</p>
+
+<p>This is exciting because now we can explain why the cart would have a <code class="language-plaintext highlighter-rouge">created_at</code> timestamp in the future. <code class="language-plaintext highlighter-rouge">Time.now</code> must’ve been mocked when those tests are running. Looking at the implementation of Timecop, if we traveled in time, <code class="language-plaintext highlighter-rouge">Time.now</code> will stay mocked until we execute <code class="language-plaintext highlighter-rouge">Timecop.return</code> to unmock <code class="language-plaintext highlighter-rouge">Time.now</code>. In our codebase, for the most part we were following best practice by calling <code class="language-plaintext highlighter-rouge">Timecop.return</code> whenever we traveled in time. But there were cases where we didn’t do that.</p>
+
+<p>So if a test traveled in time via <code class="language-plaintext highlighter-rouge">Timecop.travel(5.minutes.from_now)</code> and didn’t call <code class="language-plaintext highlighter-rouge">Timecop.return</code>, then our test runner would have its time mocked and it would be in the “future”. Afterwards, if the test runner executes a test that calls <code class="language-plaintext highlighter-rouge">Timecop.return</code>, then time would be restored to the real time.</p>
+
+<p>Wow. So our hypothesis is that first we need to run the test that puts the test runner in the future, then run a test that resets fixtures, then run a test that returns the runner to the correct time, and then finally, run the flaky cart test. I ran these exact tests locally and once they ran in the order I described above, I finally was able to reproduce the error. This validates our hypothesis!</p>
+
+<h2 id="conclusion-and-the-fix">Conclusion And The Fix</h2>
+
+<p>In the end, this flaky test issue boils down to misusing Timecop. We had a few lingering Timecop uses where we didn’t unmock time at the end of the test. The fix was simple enough: make sure we return to the correct time at the end of each test. As an interesting side note, ironically, I was the developer who wrote those tests that traveled in time. I guess that’s karma since I ended up spending time debugging and fixing these flakes.</p>
+
+<p>The takeaway from this journey is to make sure you return time to its original time at the end of each test. In fact, I would recommend using <code class="language-plaintext highlighter-rouge">Timecop.return</code> as a global teardown block. Let’s take a quick look at its implementation:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Reverts back to system's Time.now, Date.today and DateTime.now (if it exists) permamently when</span>
+<span class="c1"># no block argument is given, or temporarily reverts back to the system's time temporarily for</span>
+<span class="c1"># the given block.</span>
+<span class="k">def</span> <span class="nf">return</span><span class="p">(</span><span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="k">if</span> <span class="nb">block_given?</span>
+    <span class="n">instance</span><span class="p">.</span><span class="nf">send</span><span class="p">(</span><span class="ss">:return</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="k">else</span>
+    <span class="n">instance</span><span class="p">.</span><span class="nf">send</span><span class="p">(</span><span class="ss">:unmock!</span><span class="p">)</span>
+    <span class="kp">nil</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+
+<span class="o">...</span>
+
+<span class="k">def</span> <span class="nf">unmock!</span>
+  <span class="vi">@baseline</span> <span class="o">=</span> <span class="kp">nil</span>
+  <span class="vi">@_stack</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>It looks like Timecop resets some internal values to make sure that time is no longer mocked. The implementation doesn’t seem too costly with regards to performance and it seems that by doing it globally it would prevent future developers from making the same mistake that I did. And it makes sense too: after every test, you don’t want time to be mocked so we can go ahead and unmock time.</p>
+
+<p>In conclusion, tests are an important aspect of software development and we as developers should make sure the tests are not flaky. And if we see flaky tests, we should spend the appropriate time debugging and fixing the issue. In our case, we saw that Timecop was acting like a global state that’s shared across tests. We misused Timecop and its state leaked into other tests causing unexpected behavior. Make sure to reset global states between tests to avoid flaky tests.</p>
+
+<p><em>Thanks to Brittany Wald, Jacy Clare, Mavreen Smiel, and David Cosgrove for reading and providing feedback to this blog post.</em></p>
+
+</div>
+
+<div id="disqus_thread"></div>
+<!-- /#disqus_thread -->
+
+
+        <footer>
+  This site is powered by <a href="http://jekyllrb.com">Jekyll</a> and hosted by <a href="http://pages.github.com/">GitHub Pages</a>. You can view the source <a href="https://github.com/ivantsepp/ivantsepp.github.io">here</a>.
+</footer>
+
+      </div>
+    <!-- Discus Javascript -->
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+    var disqus_shortname = 'ivantseblog'; // required: replace example with your forum shortname
+
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a>
+</noscript>
+<a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+<script src="/javascript/responsive-nav.min.js"></script>
+<script>
+  var nav = responsiveNav(".nav-collapse", {
+    label: "",
+    insert: "after"
+  });
+</script>
+<script src="/javascript/anchor.js"></script>
+
+    </body>
+</html>
